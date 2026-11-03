@@ -1,0 +1,37 @@
+Validação em 03/11/2026
+
+PASSOU: compilação nativa arm64, target macOS 14, SwiftUI.
+PASSOU: scripts bash verificados com bash -n.
+PASSOU: assinatura local ad hoc verificada com codesign --verify --deep --strict.
+PASSOU: janela aberta e inspecionada visualmente e por acessibilidade.
+PASSOU: preparação isolada de Python 3.12.16 e mlx-lm 0.32.2.
+PASSOU: segunda preparação detecta ambiente existente e não reinstala.
+PASSOU: download completo de mlx-community/Qwen3.5-9B-4bit.
+PASSOU: carregamento offline real do modelo em 3,24 segundos.
+PASSOU: geração offline real: “funcionando localmente.”; 5,83 segundos totais
+incluindo carregamento (teste curto, sem valor de benchmark geral).
+PASSOU: API real em porta separada de teste: GET /v1/models → 200;
+POST /v1/chat/completions → 200, resposta “API local funcionando.”.
+Servidor de teste encerrado ao final.
+
+LIMITES DA VALIDAÇÃO
+A primeira geração pela janela foi interrompida antes de terminar; a geração
+completa foi validada diretamente no motor e pela API usada pela janela.
+Não foi medida economia de RAM/velocidade contra LM Studio.
+Não foram testados projetos longos, imagens, integração Cline ou tool calling.
+Instalador depende do Python 3 do macOS/Command Line Tools, presente nesta
+máquina. Portabilidade a outros Macs sem esse Python não foi validada.
+
+ATUALIZAÇÃO 0.2 — 03/11/2026
+PASSOU: nova compilação SwiftUI e abertura da janela atualizada.
+PASSOU: teste do Store real contra servidor MLX offline: geração em streaming
+com conteúdo parcial observado antes do término; resposta “Streaming funcionando.”.
+PASSOU: criação, troca e persistência de conversas no teste isolado (sem tocar
+no histórico do usuário). Histórico antigo preservado na interface.
+PASSOU: configurações inspecionadas por acessibilidade, com seleção de modelo,
+identificador Hugging Face, pasta local, temperatura e tamanho de resposta.
+PASSOU: download por identificador parametrizado testado com Qwen3.5 9B já em cache.
+A limitação anterior “sem streaming/sem catálogo” foi resolvida nesta versão.
+Não foram baixados nem testados outros modelos. Cadastro não garante suporte
+à arquitetura. Exportação e cópia estão implementadas, mas não foram exercitadas
+por automação de UI nesta rodada. Markdown é básico, com blocos de código separados.

@@ -1,0 +1,62 @@
+QWEN LOCAL — primeira versão para Mac Apple Silicon (macOS 14+)
+
+Abra “Qwen Local.app”. O aplicativo possui uma janela nativa, sem Electron.
+
+COMO USAR
+1. Preparar: baixa Python 3.12 e instala MLX em ambiente isolado.
+2. Baixar modelo: baixa mlx-community/Qwen3.5-9B-4bit (vários GB).
+3. Iniciar: inicia o servidor MLX; o primeiro pedido carrega o modelo.
+4. Digite sua mensagem e clique em Enviar (ou Command + Return).
+5. Parar / liberar RAM encerra o servidor, inclusive uma geração em andamento.
+Preparar e Baixar exigem internet. Iniciar força modo offline.
+O chat mostra a resposta aos poucos (streaming), com cópia de mensagens e blocos de código.
+
+Nesta máquina o ambiente foi preparado durante a criação. Consulte
+VALIDACAO.txt para o resultado final dos testes e do download.
+
+ARMAZENAMENTO
+Ambiente, modelo e histórico ficam em:
+~/Library/Application Support/QwenLocal/
+Conversas são salvas em conversations.json e aparecem na barra lateral.
+O histórico anterior é importado automaticamente. Nova conversa preserva as anteriores.
+Exportar conversa salva uma cópia em texto no local escolhido.
+O aplicativo pode ser movido para Aplicativos; os dados continuam no mesmo lugar.
+
+API PARA AGENTES
+Enquanto o servidor estiver ativo, a API compatível com OpenAI fica em:
+http://127.0.0.1:12345/v1
+Modelo: default_model
+Não requer chave. Apenas a interface de loopback é usada.
+A compatibilidade com um agente específico e chamadas de ferramentas precisa
+ser testada separadamente. Este aplicativo não inclui agente de programação.
+
+LIMITES
+O tamanho pequeno da interface não diminui os pesos do Qwen. O modelo e sua
+memória de execução continuam ocupando vários GB. Não houve comparação de
+RAM ou velocidade com LM Studio. Não configure contextos enormes nos agentes.
+O chat limita o histórico a aproximadamente 16 mil caracteres e cada resposta
+a 2048 tokens por padrão (ajustável de 1024 a 4096) para moderar o consumo. O limite em caracteres não equivale a um
+limite exato de tokens. A API permite que clientes externos usem outros limites.
+A versão inicial processa texto; não oferece anexos, voz ou imagens.
+Não há assinatura Developer ID nem notarização Apple; há assinatura ad hoc local.
+
+CÓDIGO-FONTE
+source/App.swift — janela e cliente HTTP.
+source/runtime.sh — ambiente, download e servidor MLX.
+source/build.sh — recompila e assina localmente o aplicativo.
+Execute bash source/build.sh para recompilar (requer ferramentas Apple).
+
+FONTES
+https://github.com/ml-explore/mlx-lm
+https://huggingface.co/mlx-community/Qwen3.5-9B-4bit
+
+MODELOS E CONFIGURAÇÕES (versão 0.2)
+Abra Configurações para selecionar o modelo. Para adicionar outro, informe
+organização/modelo do Hugging Face, clique Adicionar, depois Baixar modelo.
+Para arquivos já baixados, use Escolher pasta e selecione a pasta completa
+MLX, incluindo config, tokenizer e pesos. Desligue o modelo antes de trocar.
+Cadastrar não valida compatibilidade: o motor MLX instalado deve suportar a
+arquitetura. GGUF não é suportado. Só o Qwen3.5 9B foi validado nesta máquina.
+A seleção de modelo é lembrada entre aberturas; os controles de temperatura
+e limite de resposta voltam aos padrões ao reabrir.
+Ao interromper uma geração, o servidor é desligado para liberar memória.
