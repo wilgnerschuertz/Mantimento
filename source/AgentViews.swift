@@ -5,28 +5,24 @@ struct WorkspaceBar: View {
     @ObservedObject var store: Store
     var body: some View {
         VStack(alignment:.leading,spacing:8) {
-            HStack {
-                Image(systemName:"folder")
-                Text(store.workspace).font(.caption).lineLimit(1).truncationMode(.middle).textSelection(.enabled)
-                Button("Mudar pasta…") { store.changeWorkspace() }.disabled(store.generating)
-                Button { NSWorkspace.shared.open(URL(fileURLWithPath:store.workspace)) } label:{ Image(systemName:"arrow.up.forward.square") }.help("Abrir pasta no Finder")
+            HStack(spacing:12) {
+                Menu {
+                    Button("Mudar pasta…") { store.changeWorkspace() }
+                    Button("Abrir no Finder") { NSWorkspace.shared.open(URL(fileURLWithPath:store.workspace)) }
+                    Button("Copiar caminho") { NSPasteboard.general.clearContents(); NSPasteboard.general.setString(store.workspace,forType:.string) }
+                } label: {
+                    Label(store.workspace.hasPrefix(store.dataDir.appendingPathComponent("Workspaces").path + "/") ? "Pasta desta conversa" : URL(fileURLWithPath:store.workspace).lastPathComponent,systemImage:"folder").font(.caption).lineLimit(1).truncationMode(.middle)
+                }.menuStyle(.borderlessButton).frame(maxWidth:230,alignment:.leading).help(store.workspace).disabled(store.generating)
                 Spacer()
-            }
-            HStack {
-                Toggle("Agente de arquivos e terminal",isOn:$store.agentEnabled).toggleStyle(.switch).disabled(store.generating)
-                Spacer()
-                Picker("Permissões",selection:$store.fullControl) {
-                    Text("Revisar alterações e comandos").tag(false)
-                    Text("Controle total").tag(true)
-                }.frame(maxWidth:370).disabled(store.generating || !store.agentEnabled)
+                Picker("Modo",selection:$store.agentEnabled) { Text("Conversa").tag(false); Text("Agente").tag(true) }.pickerStyle(.segmented).frame(width:170).disabled(store.generating)
+                if store.agentEnabled {
+                    Picker("Permissões",selection:$store.fullControl) { Text("Revisar ações").tag(false); Text("Controle total").tag(true) }.labelsHidden().frame(width:165).disabled(store.generating)
+                }
             }
             if store.agentEnabled {
-                Text(store.fullControl ? "Controle total: arquivos e terminal sem aprovação; comandos têm acesso permitido ao seu usuário no Mac. Não inclui controle visual de aplicativos." : "Leituras na pasta são automáticas. Escritas e comandos exigem revisão. Texto UTF-8 e PDFs textuais; sem OCR.").font(.caption).foregroundStyle(store.fullControl ? Color.orange : Color.secondary)
+                Label(store.fullControl ? "Arquivos e terminal sem aprovação, com as permissões do seu usuário. Não inclui controle visual de aplicativos." : "Leitura local automática. Revise arquivos e comandos antes de executar.",systemImage:store.fullControl ? "bolt.shield" : "checkmark.shield").font(.caption).foregroundStyle(store.fullControl ? Color.orange : Color.secondary)
             }
-            if store.generating {
-                Button("Interromper agente / geração") { store.stop() }
-            }
-        }.padding(.horizontal,20).padding(.vertical,10).background(Color.secondary.opacity(0.04))
+        }.padding(.horizontal,24).padding(.vertical,10).background(Color.secondary.opacity(0.035))
     }
 }
 struct ReviewView: View {

@@ -7,7 +7,7 @@ import tempfile
 project = Path(__file__).resolve().parents[1]
 with tempfile.TemporaryDirectory(prefix='qwen-agent-test-') as temporary:
     root = Path(temporary)
-    store = (project/'source/App.swift').read_text().split('struct MessageView: View {')[0]
+    store = (project/'source/App.swift').read_text().split('final class Delegate:')[0]
     store = store.replace('FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0].appendingPathComponent("QwenLocal")', 'URL(fileURLWithPath:ProcessInfo.processInfo.environment["TEST_DATA"]!)')
     store = store.replace('http://127.0.0.1:12345','http://127.0.0.1:12346')
     agent = (project/'source/Agent.swift').read_text()

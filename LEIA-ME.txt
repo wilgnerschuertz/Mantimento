@@ -90,3 +90,12 @@ O .app compilado e os dados/modelos do usuário não são versionados.
 Não foi criado repositório remoto nem publicado código.
 Pastas de trabalho não são automaticamente versionadas. Para versionar um
 projeto criado pelo agente, peça git init e revise os arquivos antes do commit.
+
+VERSÃO 0.4 — INTERFACE DO MAC
+Modelos e ajustes agora abrem uma janela separada na barra lateral.
+O menu da pasta oferece Mudar pasta, Abrir no Finder e Copiar caminho.
+Conversa/Agente ficam no seletor superior. As ações do agente aparecem recolhidas
+no chat. Acompanhar resposta pode ser desmarcado para ler durante a geração.
+O chat exibe tempo até o primeiro texto e tempo total ao concluir a resposta.
+Streaming agrupado a cada ~100 ms e mensagens antigas não reprocessadas quando
+inalteradas. Documentos são lidos/pesquisados fora da fila principal da interface.

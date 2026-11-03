@@ -1,4 +1,5 @@
 import Foundation
+import Combine
 @main struct AgentTests {
     @MainActor static func main() async throws {
         let s = Store()
@@ -32,6 +33,20 @@ import Foundation
         s.select(s.conversations.first(where:{$0.workspace == previous})!)
         guard s.workspace == previous else { fatalError("Pasta não restaurada") }
         print("PASSOU: confinamento, symlink, recusa, aprovação, escrita, backup, leitura, pesquisa, terminal e pastas por conversa")
+        if ProcessInfo.processInfo.environment["TEST_STREAM"] == "1" {
+            s.messages = []; s.running = true; s.agentEnabled = false; s.input = "Teste de streaming"
+            var updates = 0
+            let observation = s.$messages.sink { _ in updates += 1 }
+            s.send()
+            for _ in 0..<200 {
+                if !s.generating { break }
+                try await Task.sleep(nanoseconds:100_000_000)
+            }
+            guard s.messages.last?.content == String(repeating:"á",count:200), !s.generating else { fatalError("Streaming perdeu conteúdo: \(s.messages.last?.content ?? "vazio") \(s.status)") }
+            guard updates < 20 else { fatalError("Atualizações não agrupadas: \(updates)") }
+            observation.cancel()
+            print("PASSOU: 200 trechos UTF-8 preservados; \(updates) publicações de mensagens")
+        }
         if ProcessInfo.processInfo.environment["TEST_MODEL"] == "1" {
             s.fullControl = true; s.agentEnabled = true; s.running = true
             s.messages = []; s.input = "Use write_file para criar o arquivo agent-proof.txt com o conteúdo exato: agente offline funcionando. Depois use read_file para confirmar e conclua."

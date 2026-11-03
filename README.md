@@ -14,9 +14,15 @@ Modelos, conversas e ambientes ficam fora do repositório. O `.app` é um artefa
 de compilação e não é versionado. GitHub Desktop pode abrir esta pasta como
 repositório local. Publicação no GitHub é uma etapa separada.
 
-## Próxima arquitetura: macOS, Windows e Linux
+## Prioridade atual: macOS nativo e preparação futura para iOS
 
-**Proposta, ainda não implementada.** O aplicativo atual roda somente em macOS.
+Manter SwiftUI e MLX no Mac. Priorizar fluidez de interface, ferramentas locais,
+medição e instalação offline. iOS exigirá motor nativo e permissões próprias;
+o processo Python e o terminal do Mac não são portáveis diretamente ao iPhone.
+
+## Proposta futura: macOS, Windows e Linux (adiada)
+
+**Proposta adiada, ainda não implementada.** O aplicativo atual roda somente em macOS.
 Um `.app` não pode ser executado diretamente em Windows ou Linux.
 
 1. Interface compartilhada em Tauri, com instaladores próprios para cada sistema.

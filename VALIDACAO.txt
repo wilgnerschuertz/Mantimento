@@ -50,3 +50,17 @@ PDFs digitalizados sem texto não têm OCR. Não há busca semântica.
 Controle total autoriza arquivos e comandos; não oferece um agente de visão/UI.
 Git local do aplicativo iniciado. Não há remoto nem commits automáticos de
 projetos de usuário. Dependências ausentes continuam dependendo de rede.
+
+VERSÃO 0.4 — macOS nativo, apresentação e fluidez
+PASSOU: nova compilação SwiftUI com visual e ajustes separados em arquivos.
+PASSOU: testes existentes de ferramentas locais, pastas, aprovação e backups.
+PASSOU: teste determinístico SSE com 200 trechos UTF-8: texto final íntegro,
+7 publicações de mensagens no ensaio (inclui usuário e placeholder), em vez de
+uma mutação por trecho. Isso mede notificações, não CPU, RAM ou velocidade MLX.
+Atualizações da mensagem ativa são agrupadas em intervalos de aproximadamente
+100 ms; mensagens inalteradas usam Equatable para evitar refazer renderização.
+Leitura e busca em documentos são executadas em tarefas fora do MainActor.
+PASSOU: janela e folha de ajustes inspecionadas por acessibilidade e screenshot.
+Não houve benchmark comparativo de CPU/RAM ou nova medição de geração MLX.
+O motor e os parâmetros de execução MLX foram mantidos. Ganho esperado é de
+fluidez do cliente; não se afirma aumento de tokens por segundo do modelo.
