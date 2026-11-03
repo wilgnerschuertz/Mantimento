@@ -10,6 +10,7 @@ struct Conversation: Identifiable, Codable {
     var id = UUID()
     var title: String
     var messages: [Message]
+    var workspace: String? = nil
 }
 struct DownloadModel: Identifiable {
     let id: String
@@ -25,6 +26,12 @@ struct DownloadModel: Identifiable {
     @Published var messages: [Message] = []
     @Published var conversations: [Conversation] = []
     @Published var selected: UUID?
+    @Published var workspace = ""
+    @Published var agentEnabled = false
+    @Published var fullControl = false
+    @Published var pending: ToolProposal?
+    var approval: CheckedContinuation<Bool,Never>?
+    var commandProcess: Process?
     @Published var modelID = UserDefaults.standard.string(forKey:"modelID") ?? "mlx-community/Qwen3.5-9B-4bit" {
         didSet { UserDefaults.standard.set(modelID, forKey:"modelID") }
     }
@@ -53,10 +60,11 @@ struct DownloadModel: Identifiable {
         refreshDownloads()
         try? FileManager.default.createDirectory(at: dataDir, withIntermediateDirectories: true)
         if let data = try? Data(contentsOf: archive), let saved = try? JSONDecoder().decode([Conversation].self, from: data), !saved.isEmpty {
-            conversations = saved; selected = saved[0].id; messages = saved[0].messages
-            return
+            conversations = saved; selected = saved[0].id; messages = saved[0].messages; workspace = saved[0].workspace ?? ""
+            ensureWorkspace(); return
         }
         if let data = try? Data(contentsOf: history), let saved = try? JSONDecoder().decode([Message].self, from: data) { messages = saved }
+        ensureWorkspace()
         if !messages.isEmpty { save() }
     }
     func refreshDownloads() {
@@ -93,13 +101,13 @@ struct DownloadModel: Identifiable {
         if let data = try? JSONEncoder().encode(messages) { try? data.write(to: history, options: .atomic) }
         if selected == nil { selected = UUID() }
         let title = String(messages.first(where: { $0.role == "user" })?.content.prefix(45) ?? "Nova conversa")
-        let conversation = Conversation(id: selected!, title: title, messages: messages)
+        let conversation = Conversation(id: selected!, title: title, messages: messages, workspace:workspace)
         if let i = conversations.firstIndex(where: { $0.id == selected }) { conversations[i] = conversation }
         else { conversations.insert(conversation, at: 0) }
         if let data = try? JSONEncoder().encode(conversations) { try? data.write(to: archive, options: .atomic) }
     }
-    func newChat() { guard !generating else { return }; save(); selected = nil; messages = []; input = ""; save() }
-    func select(_ chat: Conversation) { guard !generating else { return }; save(); selected = chat.id; messages = chat.messages; input = "" }
+    func newChat() { guard !generating else { return }; save(); selected = nil; workspace = ""; fullControl = false; messages = []; input = ""; ensureWorkspace(); save() }
+    func select(_ chat: Conversation) { guard !generating else { return }; save(); selected = chat.id; messages = chat.messages; workspace = chat.workspace ?? ""; fullControl = false; input = ""; ensureWorkspace() }
     func export() {
         let panel = NSSavePanel(); panel.nameFieldStringValue = "conversa.txt"
         guard panel.runModal() == .OK, let url = panel.url else { return }
@@ -144,10 +152,11 @@ struct DownloadModel: Identifiable {
         if process === p { status = "Inicialização demorada. Consulte os registros ou pare o processo." }
     }
     func stop() {
-        request?.cancel(); request = nil; generating = false
+        request?.cancel(); approve(false); commandProcess?.terminate()
         process?.terminate(); running = false; status = "Encerrando processo…"
     }
     func send() {
+        if agentEnabled { sendAgent(); return }
         let text = input.trimmingCharacters(in: .whitespacesAndNewlines)
         guard running, !generating, !text.isEmpty else { return }
         guard messages.reduce(0, { $0 + $1.content.count }) + text.count < 16000 else {
@@ -248,6 +257,7 @@ struct ContentView: View {
                     Button(store.generating ? "Interromper e liberar RAM" : "Desligar modelo") { store.stop() }
                 }
             }.padding(.horizontal,24).padding(.bottom,16)
+            WorkspaceBar(store:store)
             if store.showSettings {
                 ScrollView {
                 VStack(alignment:.leading,spacing:12) {
@@ -303,7 +313,7 @@ struct ContentView: View {
                             VStack(alignment: .leading, spacing: 12) {
                                 Text("Sua IA, no seu Mac.").font(.largeTitle.bold())
                                 Text("Prepare o ambiente uma vez e baixe o modelo. Depois, inicie e converse offline.").foregroundStyle(.secondary)
-                                Text("O download ocupa vários GB. O primeiro pedido carrega o modelo na memória. Esta versão é um chat; não executa código nem edita projetos.").font(.callout).foregroundStyle(.secondary)
+                                Text("O download ocupa vários GB. O primeiro pedido carrega o modelo na memória. Ative o agente para consultar documentos, editar arquivos e executar comandos na pasta de trabalho.").font(.callout).foregroundStyle(.secondary)
                             }.padding(.vertical,50)
                         }
                         ForEach(store.messages) { m in
@@ -327,12 +337,13 @@ struct ContentView: View {
             }.padding(.horizontal,16).padding(.bottom,12)
             if store.showLogs { ScrollView { Text(store.logs.isEmpty ? "Sem registros." : store.logs).font(.system(.caption,design:.monospaced)).textSelection(.enabled).frame(maxWidth:.infinity,alignment:.leading) }.frame(height:140).padding(12) }
             }
-        }.frame(minWidth:1000,minHeight:680)
+        }.frame(minWidth:1080,minHeight:760)
+        .sheet(item:$store.pending) { proposal in ReviewView(store:store,proposal:proposal).interactiveDismissDisabled() }
     }
 }
 final class Delegate: NSObject, NSApplicationDelegate {
     var store: Store?
-    func applicationWillTerminate(_ notification: Notification) { MainActor.assumeIsolated { store?.process?.terminate() } }
+    func applicationWillTerminate(_ notification: Notification) { MainActor.assumeIsolated { store?.request?.cancel(); store?.approve(false); store?.commandProcess?.terminate(); store?.process?.terminate() } }
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { true }
 }
 @main struct QwenLocalApp: App {

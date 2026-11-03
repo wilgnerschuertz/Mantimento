@@ -35,3 +35,18 @@ A limitação anterior “sem streaming/sem catálogo” foi resolvida nesta ver
 Não foram baixados nem testados outros modelos. Cadastro não garante suporte
 à arquitetura. Exportação e cópia estão implementadas, mas não foram exercitadas
 por automação de UI nesta rodada. Markdown é básico, com blocos de código separados.
+
+VERSÃO 0.3 — agente de arquivos e terminal
+PASSOU: compilação nativa das ferramentas e janela com pasta e permissões.
+PASSOU: testes contra Store e Agent reais em diretório temporário isolado:
+traversal, links simbólicos, recusa sem escrita, aprovação, edição com backup,
+leitura, pesquisa, execução de terminal, pasta padrão por conversa e restauração.
+PASSOU: timeout do executor Python com encerramento do grupo de comandos.
+PASSOU: Qwen3.5 9B offline com tool calling real criou agent-proof.txt e concluiu.
+O teste não substitui validação de um CRUD completo ou instalação de frameworks.
+Interface de revisão implementada lado a lado; aprovação/recusa validadas no
+Store, sem uma rodada de aprovação manual pela janela. PDFKit incorporado;
+PDFs digitalizados sem texto não têm OCR. Não há busca semântica.
+Controle total autoriza arquivos e comandos; não oferece um agente de visão/UI.
+Git local do aplicativo iniciado. Não há remoto nem commits automáticos de
+projetos de usuário. Dependências ausentes continuam dependendo de rede.

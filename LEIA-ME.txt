@@ -27,8 +27,8 @@ Enquanto o servidor estiver ativo, a API compatível com OpenAI fica em:
 http://127.0.0.1:12345/v1
 Modelo: default_model
 Não requer chave. Apenas a interface de loopback é usada.
-A compatibilidade com um agente específico e chamadas de ferramentas precisa
-ser testada separadamente. Este aplicativo não inclui agente de programação.
+O aplicativo inclui agente de arquivos e terminal. Chamadas de ferramentas
+foram testadas com o Qwen3.5 9B. Integrações com agentes externos não foram testadas.
 
 LIMITES
 O tamanho pequeno da interface não diminui os pesos do Qwen. O modelo e sua
@@ -37,7 +37,8 @@ RAM ou velocidade com LM Studio. Não configure contextos enormes nos agentes.
 O chat limita o histórico a aproximadamente 16 mil caracteres e cada resposta
 a 2048 tokens por padrão (ajustável de 1024 a 4096) para moderar o consumo. O limite em caracteres não equivale a um
 limite exato de tokens. A API permite que clientes externos usem outros limites.
-A versão inicial processa texto; não oferece anexos, voz ou imagens.
+O chat processa texto; o agente consulta texto UTF-8 e PDF textual na pasta
+de trabalho. Sem OCR, voz, imagens, edição Word ou planilhas nesta versão.
 Não há assinatura Developer ID nem notarização Apple; há assinatura ad hoc local.
 
 CÓDIGO-FONTE
@@ -60,3 +61,32 @@ arquitetura. GGUF não é suportado. Só o Qwen3.5 9B foi validado nesta máquin
 A seleção de modelo é lembrada entre aberturas; os controles de temperatura
 e limite de resposta voltam aos padrões ao reabrir.
 Ao interromper uma geração, o servidor é desligado para liberar memória.
+
+AGENTE LOCAL — versão 0.3
+Cada conversa tem uma pasta própria em Workspaces nos dados do aplicativo.
+Use Mudar pasta para escolher uma pasta existente. A escolha acompanha a
+conversa. Ative Agente de arquivos e terminal para usar as ferramentas.
+Modo padrão: leituras automáticas, revisão antes/depois de escritas e aprovação
+antes de executar comandos. Controle total dispensa essas aprovações.
+O modo volta a revisão ao trocar de conversa e ao reabrir o aplicativo.
+Ferramentas de arquivo ficam na pasta e rejeitam links simbólicos. O terminal
+não é uma sandbox: comandos têm as permissões do seu usuário, inclusive fora
+da pasta escolhida. Não existe controle visual de outros aplicativos.
+Versões anteriores de arquivos editados por write_file ficam em .qwen-backups.
+Alterações feitas pelo terminal não passam por esse backup de arquivo.
+O chat registra resultados das ferramentas; o histórico atual não reproduz
+comandos automaticamente ao reabrir. O agente usa no máximo 12 etapas por pedido.
+Comandos são tarefas finitas, com timeout de 60 s e saída capturada limitada;
+processos do grupo são encerrados ao terminar/interromper. Não inicie servidores
+persistentes pelo agente nesta versão. Downloads/instalação de dependências
+não disponíveis continuam exigindo rede. A inferência permanece local.
+Busca literal: até 120 arquivos por busca, inventário até 500. Leitura de PDF
+limitada a 40 páginas/16 mil caracteres; texto até 16 mil caracteres. Não há
+índice semântico. Documentos maiores podem ser truncados.
+
+GIT DO APLICATIVO
+O diretório QwenLocal contém um repositório Git local com fonte e testes.
+O .app compilado e os dados/modelos do usuário não são versionados.
+Não foi criado repositório remoto nem publicado código.
+Pastas de trabalho não são automaticamente versionadas. Para versionar um
+projeto criado pelo agente, peça git init e revise os arquivos antes do commit.
