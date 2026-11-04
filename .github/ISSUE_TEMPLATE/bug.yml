@@ -1,0 +1,29 @@
+name: Relatar problema
+description: Erro de instalação, download, conversa ou agente
+title: '[Bug]: '
+body:
+  - type: markdown
+    attributes:
+      value: 'Não inclua chaves, documentos, conversas privadas ou caminhos pessoais. Revise os registros antes de anexar.'
+  - type: input
+    id: version
+    attributes: {label: Versão do Mantimento, placeholder: '0.2.0'}
+    validations: {required: true}
+  - type: input
+    id: mac
+    attributes: {label: Mac e sistema, placeholder: 'M4, 16 GB, macOS 15.6'}
+    validations: {required: true}
+  - type: input
+    id: model
+    attributes: {label: Modelo selecionado}
+  - type: textarea
+    id: steps
+    attributes: {label: Passos para reproduzir}
+    validations: {required: true}
+  - type: textarea
+    id: result
+    attributes: {label: Resultado esperado e resultado observado}
+    validations: {required: true}
+  - type: textarea
+    id: logs
+    attributes: {label: Erro ou registros revisados, render: text}

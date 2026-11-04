@@ -16,13 +16,10 @@ fi
 export UV_PYTHON_INSTALL_DIR="$ROOT/python"
 MODEL="${2:-mlx-community/Qwen3.5-9B-4bit}"
 export HF_HOME="$ROOT/cache"
+export MANTIMENTO_DATA="$ROOT"
 mkdir -p "$ROOT"
 case "${1:-}" in
 setup)
- if [ -x "$ROOT/venv/bin/python" ] && "$ROOT/venv/bin/python" -c "import mlx_lm" >/dev/null 2>&1; then
-  echo "Ambiente já preparado."
-  exit 0
- fi
  if [ "$(/usr/bin/uname -m)" != "arm64" ]; then
   echo "Esta versão requer um Mac Apple Silicon (M1 ou posterior)."; exit 1
  fi
@@ -38,13 +35,24 @@ setup)
   /bin/cp "$bootstrap_tmp/uv-aarch64-apple-darwin/uv" "$UV"
   /bin/chmod +x "$UV"
  fi
+ if [ -x "$ROOT/venv/bin/python" ] && "$ROOT/venv/bin/python" -c "import mlx_lm" >/dev/null 2>&1; then
+  echo "Ambiente já preparado."
+  exit 0
+ fi
  "$UV" venv --python 3.12 "$ROOT/venv"
  "$UV" pip install --python "$ROOT/venv/bin/python" -r "$SCRIPT_DIR/requirements-macos-arm64.txt"
  "$ROOT/venv/bin/python" -c 'import mlx_lm; print("Ambiente pronto.")'
  ;;
-download)
+download|remove)
  if [ -d "$MODEL" ]; then echo "Pasta local selecionada; download não necessário."; exit 0; fi
- "$ROOT/venv/bin/python" -c 'from huggingface_hub import snapshot_download; import sys; snapshot_download(sys.argv[1])' "$MODEL"
+ exec "$ROOT/venv/bin/python" "$SCRIPT_DIR/model_manager.py" "$1" "$MODEL"
+ ;;
+packages)
+ bash "$SCRIPT_DIR/runtime.sh" setup
+ bash "$SCRIPT_DIR/prepare_offline.sh"
+ ;;
+kit)
+ exec "$ROOT/venv/bin/python" "$SCRIPT_DIR/offline_kit.py"
  ;;
 start)
  "$ROOT/venv/bin/python" -c 'import socket; s=socket.socket(); s.bind(("127.0.0.1",12345)); s.close()' || { echo "A porta 12345 está ocupada. Encerre o outro servidor antes de iniciar."; exit 1; }

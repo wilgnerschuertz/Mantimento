@@ -40,10 +40,16 @@ struct DownloadModel: Identifiable {
     let id: String
     let title: String
     let detail: String
+    let family: String
+    let sizeGB: Double
+    let memory: String
+    let validation: String
     static let catalog = [
-        DownloadModel(id:"mlx-community/Qwen3.5-2B-4bit", title:"Qwen3.5 2B", detail:"Leve · tarefas curtas e menor uso de memória"),
-        DownloadModel(id:"mlx-community/Qwen3.5-4B-4bit", title:"Qwen3.5 4B", detail:"Intermediário · alternativa menor ao 9B"),
-        DownloadModel(id:"mlx-community/Qwen3.5-9B-4bit", title:"Qwen3.5 9B", detail:"Mais capacidade · validado com ferramentas")
+        DownloadModel(id:"mlx-community/Qwen3.5-2B-4bit", title:"Qwen3.5 2B", detail:"Consultas, textos e tarefas curtas", family:"Qwen", sizeGB:1.75, memory:"8 GB+", validation:"Conversa testada"),
+        DownloadModel(id:"mlx-community/Qwen3.5-4B-4bit", title:"Qwen3.5 4B", detail:"Uso geral; equilíbrio entre tamanho e capacidade", family:"Qwen", sizeGB:3.06, memory:"16 GB", validation:"Experimental"),
+        DownloadModel(id:"mlx-community/Qwen3.5-9B-4bit", title:"Qwen3.5 9B", detail:"Programação e ferramentas locais", family:"Qwen", sizeGB:5.98, memory:"16 GB+", validation:"Agente testado"),
+        DownloadModel(id:"mlx-community/Llama-3.2-3B-Instruct-4bit", title:"Llama 3.2 3B", detail:"Conversa e escrita · licença Llama 3.2", family:"Llama", sizeGB:1.82, memory:"8 GB+", validation:"Experimental"),
+        DownloadModel(id:"mlx-community/Phi-4-mini-instruct-4bit", title:"Phi-4 Mini", detail:"Texto e código · licença MIT", family:"Phi", sizeGB:2.18, memory:"16 GB", validation:"Experimental")
     ]
 }
 @MainActor final class Store: ObservableObject {
@@ -61,6 +67,14 @@ struct DownloadModel: Identifiable {
     }
     @Published var models = AppIdentity.defaults.stringArray(forKey:"models") ?? ["mlx-community/Qwen3.5-9B-4bit"]
     @Published var availableModels: Set<String> = []
+    @Published var catalogQuery = ""
+    @Published var catalogFamily = "Todos"
+    @Published var downloadReceived: Double = 0
+    @Published var downloadTotal: Double = 0
+    @Published var operation = ""
+    @Published var includePersonalBackup = false
+    var eventBuffer = ""
+    var operationEnvironment: [String:String] = [:]
     @Published var newModel = ""
     @Published var showSettings = false
     @Published var maxTokens = 2048
@@ -96,8 +110,9 @@ struct DownloadModel: Identifiable {
         if !messages.isEmpty { save() }
     }
     func refreshDownloads() {
-        availableModels = Set(DownloadModel.catalog.compactMap { entry in
-            let repo = "models--" + entry.id.replacingOccurrences(of:"/",with:"--")
+        availableModels = Set(models.compactMap { id in
+            if id.hasPrefix("/") { return FileManager.default.fileExists(atPath:id + "/config.json") ? id : nil }
+            let repo = "models--" + id.replacingOccurrences(of:"/",with:"--")
             let root = dataDir.appendingPathComponent("cache/hub").appendingPathComponent(repo).appendingPathComponent("snapshots")
             let snapshots = (try? FileManager.default.contentsOfDirectory(at:root,includingPropertiesForKeys:nil)) ?? []
             let ready = snapshots.contains { folder in
@@ -109,7 +124,7 @@ struct DownloadModel: Identifiable {
                 }
                 return FileManager.default.fileExists(atPath:folder.appendingPathComponent("model.safetensors").path)
             }
-            return ready ? entry.id : nil
+            return ready ? id : nil
         })
     }
     func download(_ id: String) { guard process == nil else { return }; modelID = id; run("download") }
@@ -142,14 +157,44 @@ struct DownloadModel: Identifiable {
         do { try messages.map { "\($0.role == "user" ? "Você" : "Qwen")\n\($0.content)" }.joined(separator: "\n\n").write(to: url, atomically: true, encoding: .utf8) }
         catch { status = "Falha ao exportar: \(error.localizedDescription)" }
     }
-    func log(_ s: String) { logs = String((logs + s).suffix(18000)) }
+    func log(_ s: String) {
+        logs = String((logs + s).suffix(18000))
+        eventBuffer += s
+        while let end = eventBuffer.firstIndex(of:"\n") {
+            let line = String(eventBuffer[..<end]); eventBuffer.removeSubrange(...end)
+            if line.hasPrefix("MANTIMENTO_EVENT "), let data = line.dropFirst(17).data(using:.utf8),
+               let event = try? JSONSerialization.jsonObject(with:data) as? [String:Any] {
+                if let received = event["received"] as? Double { downloadReceived = received }
+                if let total = event["total"] as? Double { downloadTotal = total }
+                if let detail = event["detail"] as? String { status = detail }
+            }
+        }
+        if eventBuffer.count > 18000 { eventBuffer = String(eventBuffer.suffix(18000)) }
+    }
+    func removeModel(_ id: String) {
+        guard process == nil, !id.hasPrefix("/") else { return }
+        let alert = NSAlert(); alert.messageText = "Mover modelo para a Lixeira?"
+        alert.informativeText = "Conversas serão preservadas. Restaure a pasta da Lixeira para o cache/hub se precisar recuperar. O espaço só é liberado após esvaziá-la; blobs compartilhados podem permanecer."
+        alert.addButton(withTitle:"Mover para a Lixeira"); alert.addButton(withTitle:"Cancelar")
+        if alert.runModal() == .alertFirstButtonReturn { modelID = id; run("remove") }
+    }
+    func exportKit() {
+        guard process == nil else { return }
+        let panel = NSOpenPanel(); panel.canChooseDirectories = true; panel.canChooseFiles = false
+        panel.message = "Escolha onde salvar o kit. Pode ocupar vários GB."
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        operationEnvironment = ["MANTIMENTO_KIT":url.path, "MANTIMENTO_APP":Bundle.main.bundleURL.path,
+                                "MANTIMENTO_PERSONAL":includePersonalBackup ? "1" : "0"]
+        run("kit")
+    }
     func run(_ action: String) {
         guard process == nil else { return }
-        stopping = false
+        stopping = false; operation = action; downloadReceived = 0; downloadTotal = 0; eventBuffer = ""
         guard let script = Bundle.main.url(forResource: "runtime", withExtension: "sh") else { status = "Script de execução ausente."; return }
         let p = Process(); p.executableURL = URL(fileURLWithPath: "/bin/bash"); p.arguments = [script.path, action, modelID]
         var environment = ProcessInfo.processInfo.environment
         environment["MANTIMENTO_DATA"] = dataDir.path
+        environment.merge(operationEnvironment) { _, new in new }; operationEnvironment = [:]
         p.environment = environment
         let pipe = Pipe(); p.standardOutput = pipe; p.standardError = pipe
         pipe.fileHandleForReading.readabilityHandler = { [weak self] handle in
@@ -160,12 +205,12 @@ struct DownloadModel: Identifiable {
         }
         p.terminationHandler = { [weak self] proc in Task { @MainActor in
             guard let self else { return }
-            self.process = nil; self.working = false; self.running = false; self.refreshDownloads()
+            self.operation = ""; self.process = nil; self.working = false; self.running = false; self.refreshDownloads()
             self.status = self.stopping ? "Processo desligado." : proc.terminationStatus == 0 ? "Etapa concluída." : "Processo encerrado (\(proc.terminationStatus)). Consulte os registros."
         }}
         do {
             try p.run(); process = p; working = true
-            status = action == "start" ? "Iniciando servidor local…" : action == "setup" ? "Preparando Python e MLX…" : "Baixando modelo; pode levar vários minutos…"
+            status = action == "start" ? "Iniciando servidor local…" : action == "setup" ? "Preparando Python e MLX…" : "Executando \(action)… Consulte o progresso e os registros."
             if action == "start" { Task { await readiness(p) } }
         } catch { status = error.localizedDescription; pipe.fileHandleForReading.readabilityHandler = nil }
     }

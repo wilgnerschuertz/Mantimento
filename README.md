@@ -6,6 +6,14 @@ Mantimento é um aplicativo local para guardar e usar recursos digitais: hoje, m
 de IA e ferramentas de desenvolvimento; futuramente, outros acervos offline. Versão atual: macOS Apple Silicon,
 SwiftUI, MLX e Qwen3.5. Histórico Git local na branch `main`.
 
+## Próxima versão: 0.2.0
+
+Catálogo de modelos MLX, gerenciamento de downloads e kit de recuperação offline.
+Consulte [RELEASE-0.2.0.md](RELEASE-0.2.0.md) e o roteiro [TESTES-BETA.md](TESTES-BETA.md).
+Relate problemas pelas [Issues](https://github.com/wilgnerschuertz/Mantimento/issues/new/choose).
+Os modelos Llama/Phi do catálogo vêm da [MLX Community](https://huggingface.co/mlx-community);
+a licença e as instruções de cada modelo estão no link Detalhes da interface.
+
 ## Distribuição de teste 0.1.1 — Mantimento
 
 Consulte `RELEASE-0.1.1.md`. Gere o ZIP com `bash source/package.sh`.
@@ -17,6 +25,8 @@ A distribuição inicial é Apple Silicon, sem Developer ID/notarização.
 - `bash source/build.sh`: compila o aplicativo macOS e aplica assinatura local.
 - `python3 tests/run.py`: testes isolados do agente, sem modelo e sem tocar nos chats reais.
 - `TEST_MODEL=1 python3 tests/run.py`: exige servidor MLX de teste em `127.0.0.1:12346`.
+- `python3 tests/models.py`: cache, revisão fixa, espaço e remoção recuperável.
+- `python3 tests/stream.py`: integridade e atualização de streaming.
 - Consulte `LEIA-ME.txt` para instalação, uso, permissões e limites.
 
 Modelos, conversas e ambientes ficam fora do repositório. O `.app` é um artefato

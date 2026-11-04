@@ -1,0 +1,12 @@
+name: Sugerir melhoria
+description: Conte o que você precisa fazer com o Mantimento
+title: '[Sugestão]: '
+body:
+  - type: textarea
+    id: need
+    attributes: {label: Qual necessidade você tem?}
+    validations: {required: true}
+  - type: textarea
+    id: proposal
+    attributes: {label: Como gostaria de resolver?}
+    validations: {required: true}
