@@ -7,6 +7,9 @@ public sealed class ReviewWindow : Window
 {
     public ReviewWindow(Proposal proposal)
     {
+        SetResourceReference(BackgroundProperty,"WindowBrush");
+        SetResourceReference(ForegroundProperty,"TextBrush");
+        FontSize=14;
         Title = proposal.Title;
         Width = 820;
         Height = 540;

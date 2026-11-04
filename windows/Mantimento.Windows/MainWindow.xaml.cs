@@ -481,8 +481,9 @@ public partial class MainWindow : Window
             Page(scene == "models" ? ModelsPage : scene == "chat" ? ChatPage : SettingsPage);
             UpdateLayout();
             await Dispatcher.InvokeAsync(() => { }, System.Windows.Threading.DispatcherPriority.ApplicationIdle);
-            var image = new RenderTargetBitmap((int)ActualWidth, (int)ActualHeight, 96, 96, PixelFormats.Pbgra32);
-            image.Render(this);
+            var visual=(FrameworkElement)Content;
+            var image = new RenderTargetBitmap((int)Math.Ceiling(visual.ActualWidth), (int)Math.Ceiling(visual.ActualHeight), 96, 96, PixelFormats.Pbgra32);
+            image.Render(visual);
             var encoder = new PngBitmapEncoder();
             encoder.Frames.Add(BitmapFrame.Create(image));
             using var file = File.Create(Path.Combine(folder, $"{scene}-{size.W}-{(dark ? "dark" : "light")}.png"));
