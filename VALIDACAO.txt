@@ -74,3 +74,16 @@ ZIP, extração, permissão executável e assinatura do .app extraído.
 A limitação anterior de exigir Python prévio foi resolvida.
 Não há assinatura Developer ID nem notarização. Não foi executado em outro Mac
 ou outra versão do macOS. O pacote não inclui modelos nem dados do usuário.
+
+MANTIMENTO 0.1.1 — renomeação
+PASSOU: instalação nova usa Mantimento; instalação legada reutiliza QwenLocal;
+preferências do bundle anterior importadas sem sobrescrever valores atuais.
+PASSOU: testes de agente, limites de pasta, backups e streaming UTF-8.
+PASSOU: compilação Mantimento.app, ZIP Mantimento-0.1.1-macOS-arm64.zip,
+extração, permissão executável e verificação da assinatura ad hoc.
+PASSOU: aplicativo aberto com as conversas anteriores e seleção Qwen3.5 2B;
+servidor inicializado usando os dados existentes, sem mover ambiente Python.
+PASSOU: resposta real da API após renomeação: “Mantimento funcionando.”.
+Identificador novo: local.mantimento.mac. Dados legados e histórico Git não
+foram apagados nem movidos. As referências antigas restantes são compatibilidade
+e documentação histórica. Próximos commits usam e-mail noreply do GitHub.

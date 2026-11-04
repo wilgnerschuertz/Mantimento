@@ -1,7 +1,18 @@
 #!/bin/bash
 set -euo pipefail
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
-ROOT="${QWEN_LOCAL_DATA:-$HOME/Library/Application Support/QwenLocal}"
+# Keep old overrides and existing data for upgrades from Qwen Local.
+if [ -n "${MANTIMENTO_DATA:-}" ]; then
+ ROOT="$MANTIMENTO_DATA"
+elif [ -n "${QWEN_LOCAL_DATA:-}" ]; then
+ ROOT="$QWEN_LOCAL_DATA"
+elif [ -d "$HOME/Library/Application Support/Mantimento" ]; then
+ ROOT="$HOME/Library/Application Support/Mantimento"
+elif [ -d "$HOME/Library/Application Support/QwenLocal" ]; then
+ ROOT="$HOME/Library/Application Support/QwenLocal"
+else
+ ROOT="$HOME/Library/Application Support/Mantimento"
+fi
 export UV_PYTHON_INSTALL_DIR="$ROOT/python"
 MODEL="${2:-mlx-community/Qwen3.5-9B-4bit}"
 export HF_HOME="$ROOT/cache"

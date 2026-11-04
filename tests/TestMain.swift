@@ -2,6 +2,23 @@ import Foundation
 import Combine
 @main struct AgentTests {
     @MainActor static func main() async throws {
+        let compatibility = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at:compatibility,withIntermediateDirectories:true)
+        defer { try? FileManager.default.removeItem(at:compatibility) }
+        guard StoragePaths.dataDirectory(in:compatibility).lastPathComponent == "Mantimento" else { fatalError("Nome de dados novos") }
+        try FileManager.default.createDirectory(at:compatibility.appendingPathComponent("QwenLocal"),withIntermediateDirectories:true)
+        guard StoragePaths.dataDirectory(in:compatibility).lastPathComponent == "QwenLocal" else { fatalError("Dados antigos perdidos") }
+        try FileManager.default.createDirectory(at:compatibility.appendingPathComponent("Mantimento"),withIntermediateDirectories:true)
+        guard StoragePaths.dataDirectory(in:compatibility).lastPathComponent == "Mantimento" else { fatalError("Preferência por dados novos") }
+        let suite = "mantimento-test-\(UUID().uuidString)"
+        let prefs = UserDefaults(suiteName:suite)!
+        defer { prefs.removePersistentDomain(forName:suite) }
+        AppIdentity.migratePreferences(from:["modelID":"modelo-antigo", "models":["modelo-antigo"]],to:prefs)
+        guard prefs.string(forKey:"modelID") == "modelo-antigo" else { fatalError("Preferência antiga perdida") }
+        prefs.set("modelo-novo",forKey:"modelID")
+        AppIdentity.migratePreferences(from:["modelID":"modelo-antigo"],to:prefs)
+        guard prefs.string(forKey:"modelID") == "modelo-novo" else { fatalError("Preferência atual sobrescrita") }
+        print("PASSOU: Mantimento novo, dados legados e migração de preferências sem sobrescrita")
         let s = Store()
         s.ensureWorkspace()
         let root = URL(fileURLWithPath:s.workspace)

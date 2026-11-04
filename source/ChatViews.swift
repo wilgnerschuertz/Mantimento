@@ -75,7 +75,7 @@ struct ContentView: View {
             VStack(alignment:.leading,spacing:16) {
                 HStack(spacing:10) {
                     Image(systemName:"sparkles").font(.title2).foregroundStyle(Color.accentColor)
-                    VStack(alignment:.leading,spacing:2) { Text("Qwen Local").font(.headline); Text("Seu espaço offline").font(.caption).foregroundStyle(.secondary) }
+                    VStack(alignment:.leading,spacing:2) { Text("Mantimento").font(.headline); Text("Conhecimento que fica").font(.caption).foregroundStyle(.secondary) }
                 }.padding(.top,10)
                 Button { store.newChat() } label: { Label("Nova conversa",systemImage:"square.and.pencil").frame(maxWidth:.infinity).padding(.vertical,5) }.buttonStyle(.borderedProminent).disabled(store.generating).keyboardShortcut("n",modifiers:.command)
                 TextField("Buscar conversas",text:$store.chatQuery).textFieldStyle(.roundedBorder)

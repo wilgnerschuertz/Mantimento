@@ -1,6 +1,6 @@
-QWEN LOCAL — primeira versão para Mac Apple Silicon (macOS 14+)
+MANTIMENTO — primeira versão para Mac Apple Silicon (macOS 14+)
 
-Abra “Qwen Local.app”. O aplicativo possui uma janela nativa, sem Electron.
+Abra “Mantimento.app”. O aplicativo possui uma janela nativa, sem Electron.
 
 COMO USAR
 1. Preparar: baixa Python 3.12 e instala MLX em ambiente isolado.
@@ -16,7 +16,7 @@ VALIDACAO.txt para o resultado final dos testes e do download.
 
 ARMAZENAMENTO
 Ambiente, modelo e histórico ficam em:
-~/Library/Application Support/QwenLocal/
+~/Library/Application Support/Mantimento/
 Conversas são salvas em conversations.json e aparecem na barra lateral.
 O histórico anterior é importado automaticamente. Nova conversa preserva as anteriores.
 Exportar conversa salva uma cópia em texto no local escolhido.
@@ -85,9 +85,10 @@ limitada a 40 páginas/16 mil caracteres; texto até 16 mil caracteres. Não há
 índice semântico. Documentos maiores podem ser truncados.
 
 GIT DO APLICATIVO
-O diretório QwenLocal contém um repositório Git local com fonte e testes.
+O diretório Mantimento contém um repositório Git local com fonte e testes.
 O .app compilado e os dados/modelos do usuário não são versionados.
-Não foi criado repositório remoto nem publicado código.
+Repositório: https://github.com/wilgnerschuertz/Mantimento
+A visibilidade do código e a publicação das releases são gerenciadas no GitHub.
 Pastas de trabalho não são automaticamente versionadas. Para versionar um
 projeto criado pelo agente, peça git init e revise os arquivos antes do commit.
 
@@ -106,3 +107,10 @@ O preparo não exige mais Python prévio: baixa uv standalone 0.13.7 do forneced
 valida SHA-256 e instala Python e dependências em pasta do usuário.
 Dependências Python fixadas em requirements-macos-arm64.txt.
 ZIP: bash source/package.sh. Instruções para outro Mac: RELEASE-0.1.0.md.
+
+MANTIMENTO 0.1.1
+Novo nome do aplicativo e do projeto. Quem já usava Qwen Local continua acessando
+os mesmos dados na pasta legada QwenLocal quando a pasta Mantimento não existe.
+A pasta não é movida para não quebrar o Python instalado. Não remova a pasta
+antiga se seus dados ainda estão nela. Novas instalações usam Mantimento.
+Os modelos continuam sendo identificados pelos seus nomes originais, como Qwen.

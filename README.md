@@ -1,11 +1,14 @@
-# Qwen Local
+# Mantimento
 
-Cliente local e agente de desenvolvimento offline. Versão atual: macOS Apple Silicon,
+Conhecimento e ferramentas, mesmo sem conexão.
+
+Mantimento é um aplicativo local para guardar e usar recursos digitais: hoje, modelos
+de IA e ferramentas de desenvolvimento; futuramente, outros acervos offline. Versão atual: macOS Apple Silicon,
 SwiftUI, MLX e Qwen3.5. Histórico Git local na branch `main`.
 
-## Distribuição de teste 0.1.0
+## Distribuição de teste 0.1.1 — Mantimento
 
-Consulte `RELEASE-0.1.0.md`. Gere o ZIP com `bash source/package.sh`.
+Consulte `RELEASE-0.1.1.md`. Gere o ZIP com `bash source/package.sh`.
 O arquivo em `dist/` deve ser anexado aos Assets da release, separado do código-fonte.
 A distribuição inicial é Apple Silicon, sem Developer ID/notarização.
 
@@ -49,3 +52,17 @@ executor Windows. A migração não consiste apenas em recompilar o código atua
 - Tauri: https://tauri.app/start/prerequisites/
 - llama.cpp: https://github.com/ggml-org/llama.cpp
 - MLX: https://ml-explore.github.io/mlx/build/html/install.html
+
+## Atualização de Qwen Local para Mantimento
+
+O aplicativo agora se chama `Mantimento.app`, com bundle ID `local.mantimento.mac`.
+A identidade do autor nas mensagens continua Qwen quando esse é o modelo utilizado.
+Instalações novas usam `~/Library/Application Support/Mantimento/`. Instalações
+existentes reaproveitam `~/Library/Application Support/QwenLocal/` se a pasta nova
+não existir: ambientes Python não são movidos, e modelos não precisam ser baixados
+novamente. Preferências de modelos do bundle antigo são importadas somente quando
+não há uma configuração atual. Pastas de trabalho já escolhidas são preservadas.
+A variável `MANTIMENTO_DATA` permite escolher a raiz de dados; `QWEN_LOCAL_DATA`
+continua aceita por compatibilidade com scripts antigos.
+
+O nome anterior permanece no histórico Git e nas notas arquivadas da versão 0.1.0.

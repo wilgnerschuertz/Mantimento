@@ -1,6 +1,30 @@
 import SwiftUI
 import AppKit
 
+enum StoragePaths {
+    // Do not move Python environments: their executable paths can be absolute.
+    static func dataDirectory(in support: URL = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]) -> URL {
+        let current = support.appendingPathComponent("Mantimento")
+        let legacy = support.appendingPathComponent("QwenLocal")
+        var isDirectory: ObjCBool = false
+        if FileManager.default.fileExists(atPath:current.path,isDirectory:&isDirectory), isDirectory.boolValue { return current }
+        if FileManager.default.fileExists(atPath:legacy.path,isDirectory:&isDirectory), isDirectory.boolValue { return legacy }
+        return current
+    }
+}
+enum AppIdentity {
+    static func migratePreferences(from legacy: [String:Any], to defaults: UserDefaults) {
+        for key in ["modelID", "models"] where defaults.object(forKey:key) == nil {
+            if let value = legacy[key] { defaults.set(value,forKey:key) }
+        }
+    }
+    static let defaults: UserDefaults = {
+        let current = UserDefaults.standard
+        migratePreferences(from:current.persistentDomain(forName:"local.qwen.mac") ?? [:],to:current)
+        return current
+    }()
+}
+
 struct Message: Identifiable, Codable, Equatable {
     var id = UUID()
     var role: String
@@ -32,10 +56,10 @@ struct DownloadModel: Identifiable {
     @Published var pending: ToolProposal?
     var approval: CheckedContinuation<Bool,Never>?
     var commandProcess: Process?
-    @Published var modelID = UserDefaults.standard.string(forKey:"modelID") ?? "mlx-community/Qwen3.5-9B-4bit" {
-        didSet { UserDefaults.standard.set(modelID, forKey:"modelID") }
+    @Published var modelID = AppIdentity.defaults.string(forKey:"modelID") ?? "mlx-community/Qwen3.5-9B-4bit" {
+        didSet { AppIdentity.defaults.set(modelID, forKey:"modelID") }
     }
-    @Published var models = UserDefaults.standard.stringArray(forKey:"models") ?? ["mlx-community/Qwen3.5-9B-4bit"]
+    @Published var models = AppIdentity.defaults.stringArray(forKey:"models") ?? ["mlx-community/Qwen3.5-9B-4bit"]
     @Published var availableModels: Set<String> = []
     @Published var newModel = ""
     @Published var showSettings = false
@@ -55,12 +79,12 @@ struct DownloadModel: Identifiable {
     var process: Process?
     var request: Task<Void, Never>?
     let base = URL(string: "http://127.0.0.1:12345")!
-    let dataDir = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0].appendingPathComponent("QwenLocal")
+    let dataDir = StoragePaths.dataDirectory()
     var archive: URL { dataDir.appendingPathComponent("conversations.json") }
     var history: URL { dataDir.appendingPathComponent("history.json") }
     init() {
         for entry in DownloadModel.catalog where !models.contains(entry.id) { models.append(entry.id) }
-        UserDefaults.standard.set(models,forKey:"models")
+        AppIdentity.defaults.set(models,forKey:"models")
         refreshDownloads()
         try? FileManager.default.createDirectory(at: dataDir, withIntermediateDirectories: true)
         if let data = try? Data(contentsOf: archive), let saved = try? JSONDecoder().decode([Conversation].self, from: data), !saved.isEmpty {
@@ -93,7 +117,7 @@ struct DownloadModel: Identifiable {
         let value = newModel.trimmingCharacters(in:.whitespacesAndNewlines)
         let parts = value.split(separator:"/")
         guard !value.isEmpty, value.hasPrefix("/") || (parts.count == 2 && !value.contains(" ")) else { status = "Informe organização/modelo do Hugging Face ou uma pasta absoluta."; return }
-        if !models.contains(value) { models.append(value); UserDefaults.standard.set(models,forKey:"models") }
+        if !models.contains(value) { models.append(value); AppIdentity.defaults.set(models,forKey:"models") }
         modelID = value; newModel = ""; status = "Modelo selecionado. Baixe-o ou inicie se já estiver disponível."
     }
     func chooseFolder() {
@@ -124,6 +148,9 @@ struct DownloadModel: Identifiable {
         stopping = false
         guard let script = Bundle.main.url(forResource: "runtime", withExtension: "sh") else { status = "Script de execução ausente."; return }
         let p = Process(); p.executableURL = URL(fileURLWithPath: "/bin/bash"); p.arguments = [script.path, action, modelID]
+        var environment = ProcessInfo.processInfo.environment
+        environment["MANTIMENTO_DATA"] = dataDir.path
+        p.environment = environment
         let pipe = Pipe(); p.standardOutput = pipe; p.standardError = pipe
         pipe.fileHandleForReading.readabilityHandler = { [weak self] handle in
             let data = handle.availableData
@@ -221,7 +248,7 @@ final class Delegate: NSObject, NSApplicationDelegate {
     func applicationWillTerminate(_ notification: Notification) { MainActor.assumeIsolated { store?.request?.cancel(); store?.approve(false); store?.commandProcess?.terminate(); store?.process?.terminate() } }
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { true }
 }
-@main struct QwenLocalApp: App {
+@main struct MantimentoApp: App {
     @NSApplicationDelegateAdaptor(Delegate.self) var delegate
     @StateObject var store = Store()
     var body: some Scene { WindowGroup { ContentView(store:store).onAppear { delegate.store = store; NSApp.setActivationPolicy(.regular); NSApp.activate(ignoringOtherApps:true) } }.defaultSize(width:1120,height:800) }
