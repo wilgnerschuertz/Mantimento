@@ -4,12 +4,12 @@
 
 Mantimento é um aplicativo para usar modelos de IA no próprio Mac, consultar documentos e trabalhar com arquivos locais. A proposta é manter ferramentas úteis disponíveis mesmo quando serviços online estiverem fora do ar.
 
-O aplicativo Mac oferece conversa com IA, agente de arquivos e terminal e kit de recuperação offline. Uma prévia **Windows x64** está em validação, com interface nativa e seleção **CPU / GPU (Vulkan) / Automático**.
+O aplicativo Mac oferece conversa com IA, agente de arquivos e terminal e kit de recuperação offline. A prévia **Windows x64** tem interface nativa e seleção **CPU / GPU (Vulkan) / Automático**, com GPU ainda experimental.
 
 | Plataforma | Versão | Motor |
 | --- | --- | --- |
 | macOS Apple Silicon | [0.2.1](https://github.com/wilgnerschuertz/Mantimento/releases/tag/v0.2.1) | MLX · aplicativo SwiftUI |
-| Windows 10/11 x64 | [Prévia Windows: instruções e estado](windows/README.md) | llama.cpp · CPU ou GPU Vulkan · aplicativo WPF |
+| Windows 10/11 x64 | [0.3.0 Preview 1](https://github.com/wilgnerschuertz/Mantimento/releases/tag/v0.3.0-windows-preview.1) | llama.cpp · CPU ou GPU Vulkan · aplicativo WPF |
 
 Os pacotes são independentes. Um `.app` não executa no Windows, e os modelos MLX e GGUF têm formatos diferentes. Não há sincronização automática entre máquinas.
 
@@ -45,7 +45,13 @@ O primeiro preparo e a primeira resposta podem demorar mais. Depois de baixar o 
 
 O aplicativo usa assinatura local **ad hoc**, sem Developer ID e sem notarização Apple. O macOS pode bloquear a abertura. Se você confiar na origem do download, siga a [orientação oficial da Apple](https://support.apple.com/102445) para permitir a abertura desse aplicativo em **Ajustes do Sistema → Privacidade e Segurança**. Não é necessário desativar as proteções do sistema globalmente.
 
-## O que você pode fazer
+## Windows: comece por aqui
+
+Baixe o [ZIP Windows x64](https://github.com/wilgnerschuertz/Mantimento/releases/tag/v0.3.0-windows-preview.1), extraia a pasta inteira e abra **Mantimento.exe**. O runtime vem incluído; não é necessário instalar Python ou .NET. Em **Modelos**, comece com Qwen3.5 0.8B e use CPU para o primeiro teste.
+
+A prévia Windows tem conversa, histórico, catálogo GGUF e agente de texto/PowerShell. GPU usa Vulkan e precisa de driver compatível; Automático tenta GPU e volta para CPU quando necessário. Não há kit offline automatizado nem leitura PDF na interface Windows desta primeira versão. Consulte [instruções e limites](windows/LEIA-ME-WINDOWS.md).
+
+## Recursos do app Mac
 
 | Área | Funcionalidades |
 | --- | --- |
@@ -58,7 +64,7 @@ O aplicativo usa assinatura local **ad hoc**, sem Developer ID e sem notarizaç�
 
 A interface se adapta ao tamanho da janela, com barra lateral recolhível. Ao rolar uma resposta manualmente, o acompanhamento automático pausa; **Última mensagem** leva você de volta ao final. O campo de mensagem cresce até um limite para preservar a área de leitura.
 
-## Escolha um modelo
+## Escolha um modelo no Mac
 
 O catálogo inclui modelos da [MLX Community no Hugging Face](https://huggingface.co/mlx-community). Os tamanhos são aproximados e podem mudar; a interface consulta o tamanho atual antes de baixar.
 
@@ -134,7 +140,7 @@ Encontrou um problema? Use os [formulários de Issues](https://github.com/wilgne
 
 Para ajudar com a avaliação inicial, siga o [roteiro de testes beta](TESTES-BETA.md). Sugestões e contribuições são bem-vindas. O foco é melhorar a experiência no Mac e no Windows e a disponibilidade offline. iOS e Linux continuam como possibilidades futuras, ainda sem pacote próprio.
 
-### Desenvolvimento
+### Desenvolvimento no Mac
 
 Para compilar, use um Mac Apple Silicon com ferramentas de linha de comando Swift instaladas:
 
