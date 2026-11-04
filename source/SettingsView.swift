@@ -177,6 +177,16 @@ struct SettingsView:View {
                     Picker("Tamanho máximo",selection:$store.maxTokens) { Text("Curta · 1024 tokens").tag(1024); Text("Padrão · 2048 tokens").tag(2048); Text("Longa · 4096 tokens").tag(4096) }
                     LabeledContent("Criatividade") { HStack { Slider(value:$store.temperature,in:0...1); Text(store.temperature,format:.number.precision(.fractionLength(1))).monospacedDigit().frame(width:28) }.frame(maxWidth:220) }
                 }
+                Section("Memória") {
+                    Picker("Desligar modelo sem uso",selection:$store.idleUnloadMinutes) {
+                        Text("Nunca").tag(0)
+                        Text("Após 5 minutos").tag(5)
+                        Text("Após 10 minutos").tag(10)
+                        Text("Após 30 minutos").tag(30)
+                    }
+                    Text("Encerra o servidor para liberar a memória do modelo. Respostas e ações em andamento não são interrompidas. Para voltar, clique em Iniciar modelo; a primeira resposta precisará carregar os pesos novamente.")
+                        .font(.caption).foregroundStyle(.secondary)
+                }
                 Section("Diagnóstico") {
                     Button("Ver registros") { store.logsAfterSettings = true; store.showSettings = false }
                     Text("Os registros podem conter caminhos e conteúdo de arquivos. Revise antes de compartilhar.").font(.caption).foregroundStyle(.secondary)

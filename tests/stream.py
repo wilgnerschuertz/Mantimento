@@ -13,6 +13,7 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_POST(self):
         self.rfile.read(int(self.headers.get('Content-Length', 0)))
+        time.sleep(0.35)  # Model load/prefill delay must count toward first text latency.
         self.send_response(200)
         self.send_header('Content-Type', 'text/event-stream')
         self.end_headers()

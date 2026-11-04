@@ -2,6 +2,11 @@ import Foundation
 import Combine
 @main struct AgentTests {
     @MainActor static func main() async throws {
+        defer {
+            if let path = ProcessInfo.processInfo.environment["TEST_DATA"] {
+                AppIdentity.defaults.removePersistentDomain(forName:"mantimento-isolated-test-" + path)
+            }
+        }
         let compatibility = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         try FileManager.default.createDirectory(at:compatibility,withIntermediateDirectories:true)
         defer { try? FileManager.default.removeItem(at:compatibility) }
@@ -31,6 +36,19 @@ import Combine
         s.cancelReply()
         guard server.isRunning, s.process === server, s.running else { fatalError("Interromper resposta desligou o servidor") }
         server.terminate(); server.waitUntilExit(); s.process = nil; s.running = false
+        let idleServer = Process(); idleServer.executableURL = URL(fileURLWithPath:"/bin/sleep"); idleServer.arguments = ["30"]
+        try idleServer.run(); s.process = idleServer; s.running = true
+        s.idleUnloadMinutes = 0; s.unloadIfIdle(idleServer)
+        guard idleServer.isRunning else { fatalError("Desligamento desativado foi ignorado") }
+        s.idleUnloadMinutes = 10; s.generating = true; s.unloadIfIdle(idleServer)
+        guard idleServer.isRunning else { fatalError("Desligamento interrompeu resposta") }
+        s.generating = false
+        s.unloadIfIdle(Process())
+        guard idleServer.isRunning else { fatalError("Temporizador antigo desligou outro servidor") }
+        s.unloadIfIdle(idleServer); idleServer.waitUntilExit()
+        guard !s.running, s.unloadedForIdle, s.idleUnloadTask == nil else { fatalError("Modelo não liberado") }
+        s.process = nil
+        print("PASSOU: desligamento ocioso, opção Nunca, proteção de resposta e identidade do processo")
         s.ensureWorkspace()
         let root = URL(fileURLWithPath:s.workspace)
         for path in ["../escape.txt", "../outside/no.txt", ".git/config"] {
@@ -75,6 +93,8 @@ import Combine
             guard author == s.displayModel else { fatalError("Identidade ausente no streaming") }
             s.modelID = "mlx-community/Phi-4-mini-instruct-4bit"
             guard s.messages.last?.modelName == author else { fatalError("Troca de modelo alterou autoria antiga") }
+            guard let timing = s.generationInfo.components(separatedBy:" s").first?.components(separatedBy:": ").last,
+                  (Double(timing.replacingOccurrences(of:",",with:".")) ?? 0) >= 0.3 else { fatalError("Latência não inclui espera pelo servidor: \(s.generationInfo)") }
             guard updates < 20 else { fatalError("Atualizações não agrupadas: \(updates)") }
             observation.cancel()
             print("PASSOU: 200 trechos UTF-8 preservados; \(updates) publicações de mensagens")

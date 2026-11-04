@@ -11,7 +11,8 @@ struct RenderBlock: Identifiable {
 }
 struct MessageView: View, Equatable {
     let message: Message
-    static func ==(lhs:Self,rhs:Self) -> Bool { lhs.message == rhs.message }
+    var streaming = false
+    static func ==(lhs:Self,rhs:Self) -> Bool { lhs.message == rhs.message && lhs.streaming == rhs.streaming }
     var body: some View {
         if message.content.hasPrefix("Ferramenta:") {
             DisclosureGroup {
@@ -27,14 +28,19 @@ struct MessageView: View, Equatable {
                     Button { copy(message.content) } label:{ Image(systemName:"doc.on.doc").font(.caption) }.buttonStyle(.plain).foregroundStyle(.secondary).help("Copiar mensagem")
                 }
                 if message.content.isEmpty { Text("Preparando resposta…").foregroundStyle(.secondary) }
-                ForEach(RenderBlock.parse(message.content)) { block in
-                    if block.code { code(block.text) }
-                    else {
-                        VStack(alignment:.leading,spacing:5) {
-                            ForEach(Array(block.text.components(separatedBy:"\n").enumerated()),id:\.offset) { _, line in
-                                lineView(line)
-                            }
-                        }.frame(maxWidth:.infinity,alignment:.leading)
+                if streaming {
+                    Text(message.content).textSelection(.enabled).lineSpacing(4)
+                        .frame(maxWidth:.infinity,alignment:.leading)
+                } else {
+                    ForEach(RenderBlock.parse(message.content)) { block in
+                        if block.code { code(block.text) }
+                        else {
+                            VStack(alignment:.leading,spacing:5) {
+                                ForEach(Array(block.text.components(separatedBy:"\n").enumerated()),id:\.offset) { _, line in
+                                    lineView(line)
+                                }
+                            }.frame(maxWidth:.infinity,alignment:.leading)
+                        }
                     }
                 }
             }.padding(20).background(message.role == "user" ? Color.accentColor.opacity(0.075) : Color.clear,in:RoundedRectangle(cornerRadius:18))
@@ -148,7 +154,7 @@ struct ContentView: View {
                     LazyVStack(alignment:.leading,spacing:16) {
                         SetupGuide(store:store,openModels:{ layout.page = .models })
                         if store.messages.isEmpty && store.canStart { welcome }
-                        ForEach(store.messages) { message in MessageView(message:message).equatable().id(message.id) }
+                        ForEach(store.messages) { message in MessageView(message:message,streaming:store.generating && message.role == "assistant" && message.id == store.messages.last?.id).equatable().id(message.id) }
                         Color.clear.frame(height:1).id("bottom")
                     }.background(ScrollIntentObserver { atBottom in store.autoScroll = atBottom }).frame(maxWidth:760).padding(.horizontal,18).padding(.vertical,20).frame(maxWidth:.infinity)
                 }.onChange(of:store.messages.last?.content) { _, _ in

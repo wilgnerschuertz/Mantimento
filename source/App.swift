@@ -89,6 +89,26 @@ struct DownloadModel: Identifiable {
     var canStart: Bool { environmentReady && availableModels.contains(modelID) }
     func retryLastAction() { if let action = lastAction { operationEnvironment = lastActionEnvironment; run(action) } }
     func cancelReply() { request?.cancel(); approve(false); commandProcess?.terminate(); status = "Resposta interrompida." }
+    @Published var idleUnloadMinutes = AppIdentity.defaults.object(forKey:"idleUnloadMinutes") as? Int ?? 10 {
+        didSet { AppIdentity.defaults.set(idleUnloadMinutes,forKey:"idleUnloadMinutes"); scheduleIdleUnload() }
+    }
+    var idleUnloadTask: Task<Void,Never>?
+    var unloadedForIdle = false
+    func scheduleIdleUnload() {
+        idleUnloadTask?.cancel(); idleUnloadTask = nil
+        guard running, !generating, idleUnloadMinutes > 0, let server = process else { return }
+        let delay = UInt64(min(idleUnloadMinutes,120)) * 60 * 1_000_000_000
+        idleUnloadTask = Task { [weak self, weak server] in
+            do { try await Task.sleep(nanoseconds:delay) } catch { return }
+            guard let self, let server else { return }
+            self.unloadIfIdle(server)
+        }
+    }
+    func unloadIfIdle(_ server:Process) {
+        guard idleUnloadMinutes > 0, running, !generating, process === server else { return }
+        stop(); unloadedForIdle = true
+        status = "Liberando memória após inatividade…"
+    }
     @Published var maxTokens = 2048
     @Published var temperature = 0.6
     @Published var chatQuery = ""
@@ -101,7 +121,9 @@ struct DownloadModel: Identifiable {
     @Published var logs = ""
     @Published var working = false
     @Published var running = false
-    @Published var generating = false
+    @Published var generating = false {
+        didSet { scheduleIdleUnload() }
+    }
     var stopping = false
     var process: Process?
     var request: Task<Void, Never>?
@@ -203,6 +225,7 @@ struct DownloadModel: Identifiable {
     }
     func run(_ action: String) {
         guard process == nil else { return }
+        idleUnloadTask?.cancel(); unloadedForIdle = false
         stopping = false; replyFailed = false; lastAction = action; lastActionFailed = false; operation = action; downloadReceived = 0; downloadTotal = 0; eventBuffer = ""
         guard let script = Bundle.main.url(forResource: "runtime", withExtension: "sh") else { status = "Script de execução ausente."; return }
         let p = Process(); p.executableURL = URL(fileURLWithPath: "/bin/bash"); p.arguments = [script.path, action, modelID]
@@ -221,7 +244,8 @@ struct DownloadModel: Identifiable {
         p.terminationHandler = { [weak self] proc in Task { @MainActor in
             guard let self else { return }
             self.lastActionFailed = !self.stopping && proc.terminationStatus != 0; self.operation = ""; self.process = nil; self.working = false; self.running = false; self.refreshDownloads()
-            self.status = self.stopping ? "Processo desligado." : proc.terminationStatus == 0 ? "Etapa concluída." : "Processo encerrado (\(proc.terminationStatus)). Consulte os registros."
+            self.idleUnloadTask?.cancel(); self.idleUnloadTask = nil
+            self.status = self.unloadedForIdle ? "Modelo desligado por inatividade. Inicie novamente para conversar." : self.stopping ? "Processo desligado." : proc.terminationStatus == 0 ? "Etapa concluída." : "Processo encerrado (\(proc.terminationStatus)). Consulte os registros."
         }}
         do {
             try p.run(); process = p; working = true
@@ -236,7 +260,7 @@ struct DownloadModel: Identifiable {
                 var r = URLRequest(url: base.appendingPathComponent("v1/models")); r.timeoutInterval = 2
                 let (_, response) = try await URLSession.shared.data(for: r)
                 if (response as? HTTPURLResponse)?.statusCode == 200 {
-                    working = false; running = true; status = "Servidor pronto • modelo carrega no primeiro pedido"; return
+                    working = false; running = true; status = "Servidor pronto • modelo carrega no primeiro pedido"; scheduleIdleUnload(); return
                 }
             } catch {}
             try? await Task.sleep(nanoseconds: 1_000_000_000)
@@ -244,6 +268,7 @@ struct DownloadModel: Identifiable {
         if process === p { status = "Inicialização demorada. Consulte os registros ou pare o processo." }
     }
     func stop() {
+        idleUnloadTask?.cancel(); idleUnloadTask = nil
         stopping = true
         request?.cancel(); approve(false); commandProcess?.terminate()
         process?.terminate(); running = false; status = "Encerrando processo…"
@@ -263,12 +288,12 @@ struct DownloadModel: Identifiable {
                 var r = URLRequest(url: base.appendingPathComponent("v1/chat/completions"))
                 r.httpMethod = "POST"; r.timeoutInterval = 600; r.setValue("application/json", forHTTPHeaderField: "Content-Type")
                 r.httpBody = try JSONSerialization.data(withJSONObject: ["model":"default_model", "messages": [["role":"system","content":"Responda em português de forma clara e útil."]] + context, "max_tokens": maxTokens, "temperature": temperature, "stream": true, "chat_template_kwargs": ["enable_thinking": false]])
+                let started = Date()
                 let (bytes, response) = try await URLSession.shared.bytes(for: r)
                 guard (response as? HTTPURLResponse)?.statusCode == 200 else { throw NSError(domain: "Servidor", code: (response as? HTTPURLResponse)?.statusCode ?? 0, userInfo: [NSLocalizedDescriptionKey: "O servidor recusou o pedido. Consulte os registros."]) }
                 let answerID = UUID()
                 messages.append(Message(id: answerID, role: "assistant", content: "", modelName:displayModel))
                 var finished = false
-                let started = Date()
                 var firstContent: Date?
                 var buffer = ""
                 var lastFlush = Date.distantPast
@@ -305,7 +330,7 @@ struct DownloadModel: Identifiable {
 }
 final class Delegate: NSObject, NSApplicationDelegate {
     var store: Store?
-    func applicationWillTerminate(_ notification: Notification) { MainActor.assumeIsolated { store?.request?.cancel(); store?.approve(false); store?.commandProcess?.terminate(); store?.process?.terminate() } }
+    func applicationWillTerminate(_ notification: Notification) { MainActor.assumeIsolated { store?.idleUnloadTask?.cancel(); store?.request?.cancel(); store?.approve(false); store?.commandProcess?.terminate(); store?.process?.terminate() } }
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { true }
 }
 @main struct MantimentoApp: App {

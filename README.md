@@ -140,6 +140,12 @@ Encontrou um problema? Use os [formulários de Issues](https://github.com/wilgne
 
 Para ajudar com a avaliação inicial, siga o [roteiro de testes beta](TESTES-BETA.md). Sugestões e contribuições são bem-vindas. O foco é melhorar a experiência no Mac e no Windows e a disponibilidade offline. iOS e Linux continuam como possibilidades futuras, ainda sem pacote próprio.
 
+### Melhorias macOS em desenvolvimento
+
+O código atual desliga o modelo após 10 minutos sem pedidos para liberar sua memória. Em **Ajustes → Memória**, escolha 5, 10 ou 30 minutos, ou **Nunca**. Respostas e ações em andamento impedem o desligamento. Depois, use **Iniciar modelo** para retomar; os pesos serão carregados novamente na próxima resposta.
+
+Durante o streaming, a resposta é exibida como texto simples e recebe Markdown ao terminar, evitando refazer a formatação a cada atualização. O tempo de primeiro texto inclui agora a espera pelo servidor. Essas alterações estão no código e no build local; ainda não fazem parte da release macOS 0.2.1. Não há benchmark de ganho na velocidade de inferência nesta rodada.
+
 ### Desenvolvimento no Mac
 
 Para compilar, use um Mac Apple Silicon com ferramentas de linha de comando Swift instaladas:
