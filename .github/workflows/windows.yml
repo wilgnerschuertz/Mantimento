@@ -1,0 +1,82 @@
+name: Windows x64 - CPU e GPU
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ['windows/**', '.github/workflows/windows.yml']
+  pull_request:
+    paths: ['windows/**', '.github/workflows/windows.yml']
+permissions:
+  contents: read
+concurrency:
+  group: windows-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  windows:
+    runs-on: windows-2025
+    timeout-minutes: 60
+    env:
+      DOTNET_CLI_TELEMETRY_OPTOUT: '1'
+      DOTNET_NOLOGO: '1'
+      MANTIMENTO_DATA: ${{ runner.temp }}\Mantimento-test-data
+      MANTIMENTO_SMOKE_OUTPUT: ${{ github.workspace }}\dist\windows-screenshots
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: '10.0.x'
+      - name: Testes do núcleo em Windows
+        shell: pwsh
+        run: dotnet run --project windows/Mantimento.Tests -c Release
+      - name: SDK Vulkan oficial para compilação
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $version = '1.4.357.0'
+          $installer = "$env:RUNNER_TEMP\VulkanSDK-Installer.exe"
+          Invoke-WebRequest "https://sdk.lunarg.com/sdk/download/$version/windows/vulkansdk-windows-X64-$version.exe" -OutFile $installer
+          $signature = Get-AuthenticodeSignature $installer
+          if ($signature.Status -ne 'Valid' -or $signature.SignerCertificate.Subject -notmatch 'LunarG') { throw 'Assinatura do SDK Vulkan inválida.' }
+          $process = Start-Process $installer -ArgumentList '--accept-licenses','--default-answer','--confirm-command','install' -Wait -PassThru
+          if ($process.ExitCode -ne 0) { throw "SDK Vulkan: erro $($process.ExitCode)" }
+          "VULKAN_SDK=C:\VulkanSDK\$version" >> $env:GITHUB_ENV
+          "C:\VulkanSDK\$version\Bin" >> $env:GITHUB_PATH
+      - name: Compilar app e motores CPU/Vulkan
+        shell: pwsh
+        run: ./windows/scripts/build.ps1
+      - name: Smoke visual da aplicação Windows
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $package = 'dist/windows/Mantimento-0.3.0-preview.1-Windows-x64'
+          $process = Start-Process "$package/Mantimento.exe" -ArgumentList '--ui-smoke' -Wait -PassThru
+          if ($process.ExitCode -ne 0) { throw "Falha na interface: $($process.ExitCode)" }
+          if ((Get-ChildItem dist/windows-screenshots/*.png).Count -lt 4) { throw 'Snapshots incompletos.' }
+      - name: Inferência GGUF e seleção Automático
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $target = 'windows/Mantimento.Tests/bin/Release/net10.0'
+          Copy-Item 'dist/windows/Mantimento-0.3.0-preview.1-Windows-x64/engine' "$target/engine" -Recurse -Force
+          dotnet run --project windows/Mantimento.Tests -c Release -- --engine
+          if ($LASTEXITCODE -ne 0) { throw 'Falha na inferência real.' }
+      - name: Pacote para download
+        uses: actions/upload-artifact@v4
+        with:
+          name: Mantimento-Windows-x64-preview
+          path: |
+            dist/windows/*.zip
+            dist/windows/*.sha256
+          if-no-files-found: error
+          retention-days: 30
+      - name: Evidências de testes visuais
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: Windows-ui-snapshots
+          path: |
+            dist/windows-screenshots/*.png
+            ui-smoke-error.txt
+          if-no-files-found: ignore
