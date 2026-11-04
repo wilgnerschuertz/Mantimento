@@ -4,11 +4,18 @@
 
 Mantimento é um aplicativo para usar modelos de IA no próprio Mac, consultar documentos e trabalhar com arquivos locais. A proposta é manter ferramentas úteis disponíveis mesmo quando serviços online estiverem fora do ar.
 
-Hoje, o projeto oferece conversa com IA, um agente de arquivos e terminal e um kit de recuperação offline. O foco atual é **macOS com Apple Silicon**.
+O aplicativo Mac oferece conversa com IA, agente de arquivos e terminal e kit de recuperação offline. Uma prévia **Windows x64** está em validação, com interface nativa e seleção **CPU / GPU (Vulkan) / Automático**.
+
+| Plataforma | Versão | Motor |
+| --- | --- | --- |
+| macOS Apple Silicon | [0.2.1](https://github.com/wilgnerschuertz/Mantimento/releases/tag/v0.2.1) | MLX · aplicativo SwiftUI |
+| Windows 10/11 x64 | [Prévia Windows: instruções e estado](windows/README.md) | llama.cpp · CPU ou GPU Vulkan · aplicativo WPF |
+
+Os pacotes são independentes. Um `.app` não executa no Windows, e os modelos MLX e GGUF têm formatos diferentes. Não há sincronização automática entre máquinas.
 
 [Baixar a versão 0.2.1](https://github.com/wilgnerschuertz/Mantimento/releases/tag/v0.2.1) · [Novidades da versão](RELEASE-0.2.1.md) · [Relatar problema ou sugerir melhoria](https://github.com/wilgnerschuertz/Mantimento/issues/new/choose)
 
-## Comece por aqui
+## Instalação no Mac
 
 ### Requisitos
 
@@ -20,7 +27,7 @@ Hoje, o projeto oferece conversa com IA, um agente de arquivos e terminal e um k
 | Armazenamento | Espaço para o aplicativo, ambiente e modelos; cada modelo ocupa vários GB |
 | Internet | Necessária para o preparo inicial e os downloads; dispensável para conversar com modelos já instalados |
 
-**Não é necessário instalar Python, Homebrew ou ferramentas de desenvolvimento para usar o aplicativo.** O Mantimento prepara seu próprio ambiente. Esta versão não funciona em Mac Intel, Windows, Linux ou iOS.
+**Não é necessário instalar Python, Homebrew ou ferramentas de desenvolvimento para usar o aplicativo.** O Mantimento prepara seu próprio ambiente. O pacote macOS não funciona em Mac Intel, Windows, Linux ou iOS. Para Windows, veja as [instruções da prévia x64](windows/LEIA-ME-WINDOWS.md).
 
 ### Instalação
 
@@ -125,7 +132,7 @@ Feche o aplicativo antigo antes de abrir o novo. Os dois podem compartilhar dado
 
 Encontrou um problema? Use os [formulários de Issues](https://github.com/wilgnerschuertz/Mantimento/issues/new/choose) e informe versão do app, chip, RAM, macOS, modelo e passos para reproduzir. **Revise os registros antes de anexar:** eles podem conter caminhos, comandos e documentos privados.
 
-Para ajudar com a avaliação inicial, siga o [roteiro de testes beta](TESTES-BETA.md). Sugestões e contribuições são bem-vindas. O foco é melhorar a experiência no Mac e a disponibilidade offline; iOS, Windows e Linux são possibilidades futuras, ainda sem suporte.
+Para ajudar com a avaliação inicial, siga o [roteiro de testes beta](TESTES-BETA.md). Sugestões e contribuições são bem-vindas. O foco é melhorar a experiência no Mac e no Windows e a disponibilidade offline. iOS e Linux continuam como possibilidades futuras, ainda sem pacote próprio.
 
 ### Desenvolvimento
 

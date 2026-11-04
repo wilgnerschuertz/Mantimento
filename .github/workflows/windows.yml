@@ -8,6 +8,7 @@ on:
     paths: ['windows/**', '.github/workflows/windows.yml']
 permissions:
   contents: read
+  actions: read
 concurrency:
   group: windows-${{ github.ref }}
   cancel-in-progress: true
@@ -33,7 +34,15 @@ jobs:
       - name: Testes do núcleo em Windows
         shell: pwsh
         run: dotnet run --project windows/Mantimento.Tests -c Release
+      - name: Reaproveitar motores de um build confiável
+        id: native
+        if: github.event_name != 'pull_request'
+        shell: pwsh
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: ./windows/scripts/reuse-engine.ps1
       - name: SDK Vulkan oficial para compilação
+        if: steps.native.outputs.reused != 'true'
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
@@ -48,7 +57,9 @@ jobs:
           "C:\VulkanSDK\$version\Bin" >> $env:GITHUB_PATH
       - name: Compilar app e motores CPU/Vulkan
         shell: pwsh
-        run: ./windows/scripts/build.ps1
+        run: |
+          if ('${{ steps.native.outputs.reused }}' -eq 'true') { ./windows/scripts/build.ps1 -SkipEngine }
+          else { ./windows/scripts/build.ps1 }
       - name: Smoke visual da aplicação Windows
         shell: pwsh
         run: |

@@ -2,6 +2,8 @@
 
 Aplicação Windows nativa em WPF/.NET 10, com núcleo separado e motores llama.cpp CPU/Vulkan. A versão Mac SwiftUI/MLX permanece independente.
 
+[Download da prévia Windows](https://github.com/wilgnerschuertz/Mantimento/releases/tag/v0.3.0-windows-preview.1).
+
 Veja [LEIA-ME-WINDOWS.md](LEIA-ME-WINDOWS.md) para instalação, requisitos, dados e limitações.
 
 ## Desenvolvimento
