@@ -144,7 +144,15 @@ Para ajudar com a avaliação inicial, siga o [roteiro de testes beta](TESTES-BE
 
 O código atual desliga o modelo após 10 minutos sem pedidos para liberar sua memória. Em **Ajustes → Memória**, escolha 5, 10 ou 30 minutos, ou **Nunca**. Respostas e ações em andamento impedem o desligamento. Depois, use **Iniciar modelo** para retomar; os pesos serão carregados novamente na próxima resposta.
 
-Durante o streaming, a resposta é exibida como texto simples e recebe Markdown ao terminar, evitando refazer a formatação a cada atualização. O tempo de primeiro texto inclui agora a espera pelo servidor. Essas alterações estão no código e no build local; ainda não fazem parte da release macOS 0.2.1. Não há comparação A/B de ganho na velocidade de inferência nesta rodada. A [medição de referência no M4 com 16 GiB](BENCHMARK-MACOS.md) registrou aproximadamente 18 tokens/s com Qwen3.5 9B e pico de alocações MLX de 5,38 GB.
+Durante o streaming, a resposta é exibida como texto simples e recebe Markdown ao terminar, evitando refazer a formatação a cada atualização. O tempo de primeiro texto inclui agora a espera pelo servidor. Essas alterações estão no código e no build local; ainda não fazem parte da release macOS 0.2.1. Não há comparação A/B de ganho na velocidade de inferência nesta rodada. A [medição de referência no M4 com 16 GiB](BENCHMARK-MACOS.md) registrou aproximadamente 18 tokens/s em pedidos curtos com Qwen3.5 9B. No [teste prolongado](VALIDACAO-CONTEXTO-MACOS.md), a mediana foi 10,47 tokens/s, o pico reportado pelo MLX foi 6,01 GB e houve aumento de swap do sistema.
+
+### Conversas longas no Mac — em desenvolvimento
+
+Quando o histórico cresce, **Conversa extensa** aparece acima da mensagem. Use **Resumir e continuar…** ali ou no menu da conversa. O modelo resume localmente em partes; você revisa e edita o texto antes de criar uma continuação. A conversa original permanece intacta e pode ser aberta pelo menu **Abrir conversa original**. A continuação usa a mesma pasta, conserva a mensagem que você estava digitando e volta a revisar ações.
+
+O resumo pode omitir detalhes e não substitui os arquivos: confirme decisões e peça ao agente para reler o projeto. Cancelar a geração ou a revisão não cria uma continuação. Respostas de resumo vazias, excessivas ou interrompidas pelo limite não são aceitas.
+
+O orçamento econômico usa bytes UTF-8, não uma contagem exata de tokens: aviso em 12.000 bytes e limite de 16.000 para iniciar um pedido. Durante uma tarefa do agente, o contexto serializado é limitado a 24.000 bytes antes da próxima inferência. Esses limites não representam o consumo total de RAM nem a capacidade máxima do modelo. Uma mensagem individual muito grande precisa ser dividida. O agente não descarta mais silenciosamente as mensagens antigas para iniciar outra tarefa. Consulte a [validação de contexto e continuidade](VALIDACAO-CONTEXTO-MACOS.md).
 
 ### Desenvolvimento no Mac
 
@@ -156,6 +164,10 @@ bash source/package.sh    # Gera ZIP e checksum em dist/
 python3 tests/run.py      # Histórico, migração, arquivos e agente em pasta isolada
 python3 tests/stream.py   # Integridade e agrupamento do streaming
 python3 tests/models.py   # Cache, download e remoção recuperável
+# Resumo real com Qwen3.5 9B já instalado:
+python3 tests/context_inference.py "/caminho/dos/dados/Mantimento"
+# Carga contínua com contexto crescente (15 minutos):
+python3 tests/benchmark.py "/caminho/dos/dados/Mantimento" dist/benchmark-long.json --minutes 15
 ```
 
 Para revisão visual isolada, execute `python3 tests/layout_preview.py chat` ou `fresh` e abra `dist/LayoutPreview.app`. Os testes de inferência/agente real e de restauração offline exigem modelos e ambiente já preparados; consulte [VALIDACAO-0.2.0.md](VALIDACAO-0.2.0.md).

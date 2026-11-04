@@ -12,8 +12,21 @@ class Handler(BaseHTTPRequestHandler):
         pass
 
     def do_POST(self):
-        self.rfile.read(int(self.headers.get('Content-Length', 0)))
+        payload = json.loads(self.rfile.read(int(self.headers.get('Content-Length', 0))))
         time.sleep(0.35)  # Model load/prefill delay must count toward first text latency.
+        if not payload.get('stream'):
+            failure = '__SUMMARY_ERROR__' in json.dumps(payload)
+            self.send_response(503 if failure else 200)
+            self.send_header('Content-Type', 'application/json')
+            self.end_headers()
+            answer = {'choices':[{'message':{'role':'assistant','content':'Objetivo: CRUD offline. Decisão: SQLite. Pendente: testar backup. Releia os arquivos antes de editar.'},'finish_reason':'stop'}]}
+            if '__SUMMARY_TRUNCATED__' in json.dumps(payload): answer['choices'][0]['finish_reason'] = 'length'
+            if '__SUMMARY_OVERSIZE__' in json.dumps(payload): answer['choices'][0]['message']['content'] = 'x'*6001
+            try:
+                self.wfile.write(json.dumps(answer).encode())
+            except BrokenPipeError:
+                pass
+            return
         self.send_response(200)
         self.send_header('Content-Type', 'text/event-stream')
         self.end_headers()

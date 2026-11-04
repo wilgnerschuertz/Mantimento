@@ -111,6 +111,7 @@ struct ContentView: View {
         }.frame(minWidth:720,minHeight:560)
         .preferredColorScheme(appearance == "Claro" ? .light : appearance == "Escuro" ? .dark : nil)
         .sheet(isPresented:$store.showSettings,onDismiss:{ if store.logsAfterSettings { store.logsAfterSettings = false; store.showLogs = true } }) { SettingsView(store:store) }
+        .sheet(item:$store.summaryDraft) { _ in SummaryReviewView(store:store).interactiveDismissDisabled() }
         .sheet(item:$store.pending) { proposal in ReviewView(store:store,proposal:proposal).interactiveDismissDisabled() }
     }
     var sidebar: some View {
@@ -154,7 +155,7 @@ struct ContentView: View {
                     LazyVStack(alignment:.leading,spacing:16) {
                         SetupGuide(store:store,openModels:{ layout.page = .models })
                         if store.messages.isEmpty && store.canStart { welcome }
-                        ForEach(store.messages) { message in MessageView(message:message,streaming:store.generating && message.role == "assistant" && message.id == store.messages.last?.id).equatable().id(message.id) }
+                        ForEach(store.messages) { message in MessageView(message:message,streaming:store.generating && !store.summarizing && message.role == "assistant" && message.id == store.messages.last?.id).equatable().id(message.id) }
                         Color.clear.frame(height:1).id("bottom")
                     }.background(ScrollIntentObserver { atBottom in store.autoScroll = atBottom }).frame(maxWidth:760).padding(.horizontal,18).padding(.vertical,20).frame(maxWidth:.infinity)
                 }.onChange(of:store.messages.last?.content) { _, _ in
@@ -188,6 +189,10 @@ struct ContentView: View {
             }
             Menu {
                 Button("Escolher modelo") { layout.page = .models }
+                Button("Resumir e continuar…") { store.summarizeConversation() }.disabled(!store.running || store.generating || store.messages.isEmpty)
+                if let origin = store.originConversation {
+                    Button("Abrir conversa original") { store.select(origin) }.disabled(store.generating)
+                }
                 Button("Exportar conversa…") { store.export() }.disabled(store.messages.isEmpty || store.generating)
             } label: { Image(systemName:"ellipsis.circle") }.menuStyle(.borderlessButton).fixedSize().help("Opções da conversa")
         }.fixedSize()
@@ -211,13 +216,19 @@ struct ContentView: View {
     }
     var composer: some View {
         VStack(spacing:8) {
+            if store.contextBytes >= ContextBudget.warning {
+                ViewThatFits(in:.horizontal) {
+                    HStack { contextNotice; Spacer(); summarizeButton }
+                    VStack(alignment:.leading,spacing:6) { contextNotice; summarizeButton }
+                }
+            }
             HStack(alignment:.bottom,spacing:10) {
                 GeometryReader { geometry in
                     GrowingMessageEditor(text:$store.input).accessibilityLabel("Mensagem")
                         .onChange(of:geometry.size.width,initial:true) { _, width in layout.editorWidth = max(120,width - 20) }
                 }.frame(height:editorHeight)
                 if store.generating {
-                    Button { store.cancelReply() } label: { Image(systemName:"stop.fill").frame(width:24,height:26) }.help("Interromper resposta")
+                    Button { store.cancelReply() } label: { Image(systemName:"stop.fill").frame(width:24,height:26) }.help(store.summarizing ? "Interromper resumo" : "Interromper resposta")
                 } else {
                     Button { store.autoScroll = true; store.send() } label: { Image(systemName:"arrow.up").font(.body.bold()).frame(width:24,height:26) }
                         .buttonStyle(.borderedProminent).keyboardShortcut(.return,modifiers:.command)
@@ -230,6 +241,15 @@ struct ContentView: View {
                 Text("⌘ Return para enviar")
             }.font(.caption2).foregroundStyle(.secondary)
         }.frame(maxWidth:800).padding(.horizontal,16).padding(.vertical,12).frame(maxWidth:.infinity)
+    }
+    var contextNotice: some View {
+        Label(store.contextBytes > ContextBudget.limit ? "Contexto cheio" : "Conversa extensa",systemImage:"text.bubble")
+            .font(.caption).foregroundStyle(.secondary)
+            .help("Limite econômico de texto enviado ao modelo: 16 KB em UTF-8. Não é a capacidade total do modelo nem uma medida exata de tokens.")
+    }
+    var summarizeButton: some View {
+        Button("Resumir e continuar…") { store.summarizeConversation() }
+            .font(.caption).disabled(!store.running || store.generating || store.messages.isEmpty)
     }
     // Width-aware text measurement is supplied by the native editor below.
     var editorHeight: CGFloat { min(layout.compactHeight ? 96 : 160,max(44,GrowingMessageEditor.measuredHeight(text:store.input,width:layout.editorWidth))) }
@@ -285,5 +305,26 @@ struct ScrollIntentObserver: NSViewRepresentable {
             }
         }
         deinit { if let token { NotificationCenter.default.removeObserver(token) } }
+    }
+}
+
+struct SummaryReviewView: View {
+    @ObservedObject var store: Store
+    var body: some View {
+        VStack(alignment:.leading,spacing:14) {
+            Text("Revise antes de continuar").font(.title2.weight(.semibold))
+            Text("O resumo pode omitir detalhes. Corrija decisões e pendências importantes. Uma nova conversa usará este texto e a mesma pasta; o histórico original continuará disponível.")
+                .font(.callout).foregroundStyle(.secondary).fixedSize(horizontal:false,vertical:true)
+            TextEditor(text:$store.summaryText).font(.body).frame(minHeight:180).border(Color.secondary.opacity(0.2))
+            Text(store.status).font(.caption).foregroundStyle(.secondary).fixedSize(horizontal:false,vertical:true)
+            Text("\(store.summaryText.utf8.count) / 6000 bytes · ações voltam ao modo de revisão")
+                .font(.caption).foregroundStyle(.secondary)
+            HStack {
+                Button("Cancelar",role:.cancel) { store.summaryDraft = nil; store.summaryText = "" }
+                Spacer()
+                Button("Criar continuação") { store.continueFromSummary() }.buttonStyle(.borderedProminent)
+                    .disabled(store.summaryText.trimmingCharacters(in:.whitespacesAndNewlines).isEmpty || store.summaryText.utf8.count > 6000)
+            }
+        }.padding(24).frame(minWidth:480,idealWidth:600,minHeight:400,idealHeight:520)
     }
 }

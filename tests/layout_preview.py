@@ -1,5 +1,5 @@
 """Build an isolated visual fixture. Launch its .app through Finder/Codex UI.
-Usage: python3 tests/layout_preview.py [fresh|chat]
+Usage: python3 tests/layout_preview.py [fresh|chat|context|summary]
 No user chats, model server or real environment is used.
 """
 import json
@@ -10,7 +10,7 @@ import tempfile
 
 project = Path(__file__).resolve().parents[1]
 mode = sys.argv[1] if len(sys.argv) > 1 else 'chat'
-assert mode in ('fresh','chat')
+assert mode in ('fresh','chat','context','summary')
 app = project/'dist/LayoutPreview.app'
 resources = app/'Contents/Resources'; resources.mkdir(parents=True,exist_ok=True)
 macos = app/'Contents/MacOS'; macos.mkdir(exist_ok=True)
@@ -35,7 +35,7 @@ import AppKit
     }.defaultSize(width:720,height:560) }
 }
 '''
-    if mode == 'chat':
+    if mode in ('chat','context','summary'):
         fixture = fixture.replace('FIXTURE','''
             store.modelID = "mlx-community/Modelo-com-nome-muito-longo-para-testar-a-interface-4bit"
             store.messages = [Message(role:"user",content:"Quero organizar meus documentos locais e criar um projeto com uma descrição muito longa para verificar a leitura."),
@@ -45,6 +45,19 @@ import AppKit
         ''')
     else:
         fixture = fixture.replace('FIXTURE','store.modelID = "mlx-community/Qwen3.5-2B-4bit"')
+    if mode in ('context','summary'):
+        extra = """
+            store.messages.append(Message(role:"user",content:String(repeating:"Decisão: manter os documentos locais e validar o backup.\\n",count:180)))
+            store.input = "Continue o projeto a partir das decisões anteriores."
+            store.save()
+        """
+        if mode == 'summary':
+            extra += """
+            store.summaryText = "Objetivo: criar um CRUD offline em Python e SQLite.\\n\\nDecisões: usar apenas a biblioteca padrão, salvar backups e testar restauração.\\n\\nPendências: validar entradas e escrever testes de atualização e exclusão. Releia os arquivos antes de editar."
+            store.status = "Revise o resumo antes de continuar. Ele pode omitir detalhes."
+            store.summaryDraft = SummaryDraft(sourceID:store.selected!)
+            """
+        fixture = fixture.replace('        }\n    }.defaultSize', extra+'\n        }\n    }.defaultSize')
     (build/'Preview.swift').write_text(fixture)
     subprocess.run(['swiftc','-parse-as-library',str(build/'Store.swift'),str(project/'source/Agent.swift'),str(project/'source/AgentViews.swift'),str(project/'source/ChatViews.swift'),str(project/'source/SettingsView.swift'),str(build/'Preview.swift'),'-o',str(macos/'LayoutPreview')],check=True)
 (app/'Contents/Info.plist').write_text('''<?xml version="1.0" encoding="UTF-8"?><plist version="1.0"><dict><key>CFBundleExecutable</key><string>LayoutPreview</string><key>CFBundleIdentifier</key><string>local.mantimento.layout-preview</string><key>CFBundleName</key><string>LayoutPreview</string><key>CFBundlePackageType</key><string>APPL</string></dict></plist>''')

@@ -21,3 +21,12 @@ Não envie documentos privados para reproduzir problemas. Use arquivos descartá
 Registre resultados numa Issue: versão, Mac/sistema, etapa, esperado e observado. Revise registros antes de anexar.
 
 A instalação isolada no Mac de desenvolvimento não substitui testes em outra máquina e em versões mais antigas do macOS. Assinatura Developer ID e notarização continuam pendentes.
+
+## Contexto e continuidade (build macOS em desenvolvimento)
+
+- Em uma conversa extensa, confira o aviso acima da mensagem e escolha **Resumir e continuar…**.
+- Revise o resumo, edite uma decisão e crie a continuação. Verifique a pasta, o rascunho e o modo **Revisar ações**.
+- Pelo menu, abra a conversa original e confira que todas as mensagens continuam lá.
+- Cancele um resumo em andamento e uma revisão; nenhum novo chat deve aparecer.
+- Teste uma mensagem individual maior que o orçamento: ela deve permanecer no campo, com orientação para dividir o texto.
+- Resumos podem perder informações. Confirme nomes, caminhos, restrições e pendências antes de usá-los para continuar um projeto.

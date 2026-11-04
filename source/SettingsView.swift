@@ -201,6 +201,7 @@ struct SettingsView:View {
 struct OperationStatusView:View {
     @ObservedObject var store:Store
     var title:String {
+        if store.summarizing { return "Resumindo conversa" }
         if store.generating { return "Respondendo" }
         if store.replyFailed { return "Não foi possível responder" }
         if store.lastActionFailed { return "Não foi possível concluir" }

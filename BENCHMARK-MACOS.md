@@ -34,3 +34,7 @@ python3 tests/benchmark.py "/caminho/dos/dados/Mantimento" dist/benchmark-m4-qwe
 ```
 
 Use a pasta que contém `venv` e `cache`; instalações antigas podem continuar em `QwenLocal`. O script requer o Qwen3.5 9B baixado. Ele guarda os resultados e respostas sintéticas no JSON, encerra seu próprio servidor e não altera chats nem preferências. As métricas não incluem a renderização da janela SwiftUI.
+
+## Teste prolongado posterior
+
+A [validação de contexto](VALIDACAO-CONTEXTO-MACOS.md) inclui cerca de 17 minutos de carga contínua. Nela, o pico reportado pelo MLX foi 6,01 GB, houve aumento de swap global e a velocidade mediana foi 10,47 tokens/s. Os resultados curtos acima não devem ser tratados como desempenho sustentado garantido.
