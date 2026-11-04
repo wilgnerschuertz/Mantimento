@@ -19,7 +19,18 @@ import Combine
         AppIdentity.migratePreferences(from:["modelID":"modelo-antigo"],to:prefs)
         guard prefs.string(forKey:"modelID") == "modelo-novo" else { fatalError("Preferência atual sobrescrita") }
         print("PASSOU: Mantimento novo, dados legados e migração de preferências sem sobrescrita")
+        let oldJSON = "{\"id\":\"00000000-0000-0000-0000-000000000001\",\"role\":\"assistant\",\"content\":\"Resposta antiga\"}"
+        let oldMessage = try JSONDecoder().decode(Message.self,from:Data(oldJSON.utf8))
+        guard oldMessage.modelName == nil else { fatalError("Conversa legada não abriu") }
+        let named = Message(role:"assistant",content:"Resposta",modelName:"Llama 3.2 3B")
+        let restored = try JSONDecoder().decode(Message.self,from:JSONEncoder().encode(named))
+        guard restored.modelName == "Llama 3.2 3B" else { fatalError("Identidade do modelo perdida") }
         let s = Store()
+        let server = Process(); server.executableURL = URL(fileURLWithPath:"/bin/sleep"); server.arguments = ["30"]
+        try server.run(); s.process = server; s.running = true
+        s.cancelReply()
+        guard server.isRunning, s.process === server, s.running else { fatalError("Interromper resposta desligou o servidor") }
+        server.terminate(); server.waitUntilExit(); s.process = nil; s.running = false
         s.ensureWorkspace()
         let root = URL(fileURLWithPath:s.workspace)
         for path in ["../escape.txt", "../outside/no.txt", ".git/config"] {
@@ -60,6 +71,10 @@ import Combine
                 try await Task.sleep(nanoseconds:100_000_000)
             }
             guard s.messages.last?.content == String(repeating:"á",count:200), !s.generating else { fatalError("Streaming perdeu conteúdo: \(s.messages.last?.content ?? "vazio") \(s.status)") }
+            let author = s.messages.last?.modelName
+            guard author == s.displayModel else { fatalError("Identidade ausente no streaming") }
+            s.modelID = "mlx-community/Phi-4-mini-instruct-4bit"
+            guard s.messages.last?.modelName == author else { fatalError("Troca de modelo alterou autoria antiga") }
             guard updates < 20 else { fatalError("Atualizações não agrupadas: \(updates)") }
             observation.cancel()
             print("PASSOU: 200 trechos UTF-8 preservados; \(updates) publicações de mensagens")

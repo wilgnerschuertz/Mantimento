@@ -22,7 +22,7 @@ struct MessageView: View, Equatable {
             VStack(alignment:.leading,spacing:12) {
                 HStack(spacing:8) {
                     Image(systemName:message.role == "user" ? "person.crop.circle" : "sparkles").foregroundStyle(message.role == "user" ? Color.secondary : Color.accentColor)
-                    Text(message.role == "user" ? "Você" : "Qwen").font(.subheadline.weight(.semibold))
+                    Text(message.role == "user" ? "Você" : (message.modelName ?? "Assistente")).font(.subheadline.weight(.semibold))
                     Spacer()
                     Button { copy(message.content) } label:{ Image(systemName:"doc.on.doc").font(.caption) }.buttonStyle(.plain).foregroundStyle(.secondary).help("Copiar mensagem")
                 }
@@ -67,98 +67,217 @@ struct MessageView: View, Equatable {
         }.background(Color(nsColor:.textBackgroundColor),in:RoundedRectangle(cornerRadius:12)).overlay(RoundedRectangle(cornerRadius:12).stroke(Color.secondary.opacity(0.13)))
     }
 }
+enum AppPage: String, CaseIterable, Identifiable {
+    case chat = "Conversa", models = "Modelos", backup = "Backup offline"
+    var id: String { rawValue }
+    var icon: String { switch self { case .chat: "bubble.left.and.bubble.right"; case .models: "square.stack.3d.up"; case .backup: "externaldrive" } }
+}
+@MainActor final class LayoutState:ObservableObject {
+    @Published var page:AppPage = .chat
+    @Published var columns:NavigationSplitViewVisibility = .all
+    @Published var editorWidth:CGFloat = 480
+    @Published var compactHeight = false
+}
 struct ContentView: View {
     @ObservedObject var store: Store
-    var chats:[Conversation] { store.conversations.filter { store.chatQuery.isEmpty || $0.title.localizedCaseInsensitiveContains(store.chatQuery) } }
+    @StateObject private var layout = LayoutState()
+    @AppStorage("appearance") private var appearance = "Sistema"
     var body: some View {
-        HStack(spacing:0) {
-            VStack(alignment:.leading,spacing:16) {
-                HStack(spacing:10) {
-                    Image(systemName:"sparkles").font(.title2).foregroundStyle(Color.accentColor)
-                    VStack(alignment:.leading,spacing:2) { Text("Mantimento").font(.headline); Text("Conhecimento que fica").font(.caption).foregroundStyle(.secondary) }
-                }.padding(.top,10)
-                Button { store.newChat() } label: { Label("Nova conversa",systemImage:"square.and.pencil").frame(maxWidth:.infinity).padding(.vertical,5) }.buttonStyle(.borderedProminent).disabled(store.generating).keyboardShortcut("n",modifiers:.command)
-                TextField("Buscar conversas",text:$store.chatQuery).textFieldStyle(.roundedBorder)
-                Text("CONVERSAS").font(.system(size:10,weight:.semibold)).tracking(1.2).foregroundStyle(.secondary)
-                ScrollView {
-                    LazyVStack(spacing:5) {
-                        ForEach(chats) { chat in
-                            Button { store.select(chat) } label: {
-                                HStack(alignment:.top,spacing:8) { Image(systemName:"bubble.left").font(.caption).padding(.top,2); Text(chat.title).font(.callout).lineLimit(2); Spacer(minLength:0) }
-                                .padding(11).frame(maxWidth:.infinity,alignment:.leading).background(store.selected == chat.id ? Color.accentColor.opacity(0.13) : Color.clear,in:RoundedRectangle(cornerRadius:10))
-                            }.buttonStyle(.plain).disabled(store.generating)
-                        }
+        GeometryReader { geometry in
+            NavigationSplitView(columnVisibility:$layout.columns) {
+                sidebar.navigationSplitViewColumnWidth(min:200,ideal:225,max:280)
+            } detail: {
+                VStack(spacing:0) {
+                    switch layout.page {
+                    case .chat: chat
+                    case .models: ModelsView(store:store)
+                    case .backup: BackupView(store:store)
                     }
+                    OperationStatusView(store:store)
+                }.background(Color(nsColor:.windowBackgroundColor))
+                .toolbar {
+                    ToolbarItem(placement:.principal) { Text(layout.page.rawValue).font(.headline) }
+                    ToolbarItem { Button { store.showSettings = true } label: { Label("Ajustes",systemImage:"gearshape") }.help("Ajustes · ⌘ ,").keyboardShortcut(",",modifiers:.command) }
                 }
-                Divider()
-                Label("Dados no seu Mac",systemImage:"lock.shield").font(.caption).foregroundStyle(.secondary)
-                Button { store.showSettings = true } label:{ Label("Modelos e ajustes",systemImage:"slider.horizontal.3") }.buttonStyle(.plain).disabled(store.generating)
-                Button { store.export() } label:{ Label("Exportar conversa",systemImage:"square.and.arrow.up") }.buttonStyle(.plain).disabled(store.messages.isEmpty || store.generating)
-            }.padding(18).frame(width:220).background(.regularMaterial)
-            Divider()
-            VStack(spacing:0) {
-                header
-                WorkspaceBar(store:store)
-                Divider()
-                ScrollViewReader { proxy in
-                    ScrollView {
-                        LazyVStack(alignment:.leading,spacing:16) {
-                            if store.messages.isEmpty { welcome }
-                            ForEach(store.messages) { message in MessageView(message:message).equatable().id(message.id) }
-                            Color.clear.frame(height:1).id("bottom")
-                        }.frame(maxWidth:820).padding(.horizontal,28).padding(.vertical,24).frame(maxWidth:.infinity)
-                    }.onChange(of:store.messages.last?.content) { _, _ in if store.autoScroll { proxy.scrollTo("bottom",anchor:.bottom) } }
-                    .onChange(of:store.selected) { _, _ in proxy.scrollTo("bottom",anchor:.bottom) }
-                }
-                composer
-                HStack(spacing:10) {
-                    if store.working || store.generating { ProgressView().controlSize(.mini) }
-                    Text(store.status).lineLimit(2)
-                    Spacer()
-                    Toggle("Acompanhar resposta",isOn:$store.autoScroll).toggleStyle(.checkbox)
-                    Button { store.showLogs.toggle() } label: { Image(systemName:"terminal") }.buttonStyle(.plain).help("Registros")
-                }.font(.caption).foregroundStyle(.secondary).padding(.horizontal,22).padding(.bottom,12)
-                if store.showLogs { ScrollView { Text(store.logs.isEmpty ? "Sem registros." : store.logs).font(.system(.caption,design:.monospaced)).textSelection(.enabled).frame(maxWidth:.infinity,alignment:.leading).padding(12) }.frame(height:130).background(Color(nsColor:.textBackgroundColor)) }
-            }.background(Color(nsColor:.windowBackgroundColor))
-        }.frame(minWidth:1020,minHeight:720)
-        .sheet(isPresented:$store.showSettings) { SettingsView(store:store) }
+            }.onChange(of:geometry.size.width,initial:true) { old, width in
+                if width < 940 && (old >= 940 || old == width) { layout.columns = .detailOnly }
+            }.onChange(of:geometry.size.height,initial:true) { _, height in layout.compactHeight = height < 650 }
+        }.frame(minWidth:720,minHeight:560)
+        .preferredColorScheme(appearance == "Claro" ? .light : appearance == "Escuro" ? .dark : nil)
+        .sheet(isPresented:$store.showSettings,onDismiss:{ if store.logsAfterSettings { store.logsAfterSettings = false; store.showLogs = true } }) { SettingsView(store:store) }
         .sheet(item:$store.pending) { proposal in ReviewView(store:store,proposal:proposal).interactiveDismissDisabled() }
     }
-    var header:some View {
-        HStack(spacing:12) {
-            VStack(alignment:.leading,spacing:4) {
-                Text(store.conversations.first(where:{$0.id == store.selected})?.title ?? "Nova conversa").font(.title3.weight(.semibold)).lineLimit(1)
-                HStack(spacing:6) { Circle().fill(store.running ? Color.green : Color.secondary.opacity(0.4)).frame(width:6,height:6); Text(store.modelID.components(separatedBy:"/").last ?? store.modelID); Text("·"); Text(store.running ? "Local ativo" : "Modelo desligado") }.font(.caption).foregroundStyle(.secondary)
+    var sidebar: some View {
+        VStack(alignment:.leading,spacing:16) {
+            Label("Mantimento",systemImage:"sparkles").font(.title3.weight(.semibold)).padding(.top,8)
+            VStack(spacing:4) {
+                ForEach(AppPage.allCases) { destination in
+                    Button { layout.page = destination } label: {
+                        Label(destination.rawValue,systemImage:destination.icon).frame(maxWidth:.infinity,alignment:.leading).padding(10)
+                            .background(layout.page == destination ? Color.accentColor.opacity(0.14) : Color.clear,in:RoundedRectangle(cornerRadius:9))
+                    }.buttonStyle(.plain)
+                }
             }
-            Spacer()
+            Divider()
+            Button { store.newChat(); layout.page = .chat } label: { Label("Nova conversa",systemImage:"square.and.pencil").frame(maxWidth:.infinity).padding(.vertical,4) }
+                .buttonStyle(.borderedProminent).disabled(store.generating).keyboardShortcut("n",modifiers:.command)
+            TextField("Buscar conversas",text:$store.chatQuery).textFieldStyle(.roundedBorder)
+            ScrollView {
+                LazyVStack(alignment:.leading,spacing:4) {
+                    ForEach(store.conversations.filter { store.chatQuery.isEmpty || $0.title.localizedCaseInsensitiveContains(store.chatQuery) }) { conversation in
+                        Button { store.select(conversation); layout.page = .chat } label: {
+                            Text(conversation.title).lineLimit(2).frame(maxWidth:.infinity,alignment:.leading).padding(10)
+                                .background(store.selected == conversation.id && layout.page == .chat ? Color.secondary.opacity(0.12) : Color.clear,in:RoundedRectangle(cornerRadius:8))
+                        }.buttonStyle(.plain).disabled(store.generating)
+                    }
+                }
+            }
+            Label("Conhecimento que fica",systemImage:"lock.shield").font(.caption).foregroundStyle(.secondary)
+        }.padding(14)
+    }
+    var chat: some View {
+        VStack(spacing:0) {
+            ViewThatFits(in:.horizontal) {
+                HStack(spacing:16) { conversationTitle; Spacer(minLength:8); modelControl }
+                VStack(alignment:.leading,spacing:10) { conversationTitle; modelControl }
+            }.padding(18)
+            WorkspaceBar(store:store)
+            Divider()
+            ScrollViewReader { proxy in
+                ScrollView {
+                    LazyVStack(alignment:.leading,spacing:16) {
+                        SetupGuide(store:store,openModels:{ layout.page = .models })
+                        if store.messages.isEmpty && store.canStart { welcome }
+                        ForEach(store.messages) { message in MessageView(message:message).equatable().id(message.id) }
+                        Color.clear.frame(height:1).id("bottom")
+                    }.background(ScrollIntentObserver { atBottom in store.autoScroll = atBottom }).frame(maxWidth:760).padding(.horizontal,18).padding(.vertical,20).frame(maxWidth:.infinity)
+                }.onChange(of:store.messages.last?.content) { _, _ in
+                    if store.autoScroll { proxy.scrollTo("bottom",anchor:.bottom) }
+                }.onAppear { proxy.scrollTo("bottom",anchor:.bottom) }.onChange(of:store.selected) { _, _ in
+                    store.autoScroll = true; proxy.scrollTo("bottom",anchor:.bottom)
+                }.overlay(alignment:.bottom) {
+                    if !store.autoScroll {
+                        Button { store.autoScroll = true; proxy.scrollTo("bottom",anchor:.bottom) } label: {
+                            Label("Última mensagem",systemImage:"arrow.down")
+                        }.buttonStyle(.bordered).background(.regularMaterial,in:Capsule()).padding(12)
+                    }
+                }
+            }
+            composer
+        }
+    }
+    var conversationTitle: some View {
+        VStack(alignment:.leading,spacing:4) {
+            Text(store.conversations.first(where:{$0.id == store.selected})?.title ?? "Nova conversa")
+                .font(.title3.weight(.semibold)).lineLimit(1).truncationMode(.tail)
+            Text(store.displayModel).font(.caption).foregroundStyle(.secondary).lineLimit(1).truncationMode(.middle).help(store.modelID)
+        }.frame(maxWidth:.infinity,alignment:.leading)
+    }
+    var modelControl: some View {
+        HStack(spacing:8) {
             if store.process == nil {
-                Button { store.run("start") } label: { Label("Iniciar",systemImage:"play.fill") }.buttonStyle(.bordered).disabled(store.generating)
+                Button("Iniciar modelo",systemImage:"play.fill") { store.run("start") }.disabled(!store.canStart || store.generating)
             } else {
-                Button { store.stop() } label: { Label(store.generating ? "Interromper" : "Liberar memória",systemImage:"stop.fill") }.buttonStyle(.bordered)
+                Button("Desligar",systemImage:"power") { store.stop() }
             }
-        }.padding(.horizontal,24).padding(.vertical,18)
+            Menu {
+                Button("Escolher modelo") { layout.page = .models }
+                Button("Exportar conversa…") { store.export() }.disabled(store.messages.isEmpty || store.generating)
+            } label: { Image(systemName:"ellipsis.circle") }.menuStyle(.borderlessButton).fixedSize().help("Opções da conversa")
+        }.fixedSize()
     }
-    var welcome:some View {
+    var welcome: some View {
         VStack(alignment:.leading,spacing:18) {
-            Image(systemName:"sparkles").font(.system(size:36,weight:.light)).foregroundStyle(Color.accentColor)
-            Text("Um espaço para pensar\ne construir.").font(.system(size:32,weight:.semibold,design:.rounded))
-            Text("Converse com seu modelo ou ative o agente para trabalhar com os arquivos desta pasta.").font(.body).foregroundStyle(.secondary).lineSpacing(4)
-            HStack(spacing:10) {
-                suggestion("Consultar documentos","Leia os documentos desta pasta e resuma os principais pontos.")
-                suggestion("Criar um projeto","Crie um CRUD simples em Python e SQLite nesta pasta, sem dependências externas. Teste as operações.")
+            Image(systemName:"sparkles").font(.system(size:32,weight:.light)).foregroundStyle(Color.accentColor)
+            Text("Conhecimento, sempre por perto.").font(.system(size:28,weight:.semibold,design:.rounded)).fixedSize(horizontal:false,vertical:true)
+            Text("Converse com sua IA ou use o agente para trabalhar com os arquivos da pasta escolhida.").foregroundStyle(.secondary)
+            ViewThatFits(in:.horizontal) {
+                HStack { suggestion("Resumir documentos",agent:true); suggestion("Criar um projeto",agent:true) }
+                VStack(alignment:.leading) { suggestion("Resumir documentos",agent:true); suggestion("Criar um projeto",agent:true) }
             }
-        }.padding(.vertical,45).padding(.horizontal,12)
+        }.padding(.vertical,24)
     }
-    func suggestion(_ title:String,_ prompt:String) -> some View {
-        Button { store.input = prompt } label: { HStack { Text(title); Image(systemName:"arrow.up.left") }.font(.callout).padding(10) }.buttonStyle(.bordered)
+    func suggestion(_ title:String,agent:Bool) -> some View {
+        Button {
+            store.agentEnabled = agent
+            store.input = title == "Criar um projeto" ? "Crie um CRUD simples em Python e SQLite nesta pasta, sem dependências externas. Teste as operações." : "Leia os documentos desta pasta e resuma os principais pontos."
+        } label: { Label(title,systemImage:"arrow.up.left").padding(5) }.buttonStyle(.bordered).disabled(store.generating)
     }
-    var composer:some View {
+    var composer: some View {
         VStack(spacing:8) {
-            HStack(alignment:.bottom,spacing:12) {
-                TextEditor(text:$store.input).font(.body).scrollContentBackground(.hidden).frame(height:66).padding(6).accessibilityLabel("Mensagem")
-                Button { store.send() } label:{ Image(systemName:"arrow.up").font(.body.bold()).frame(width:24,height:28) }.buttonStyle(.borderedProminent).keyboardShortcut(.return,modifiers:.command).disabled(!store.running || store.generating || store.input.trimmingCharacters(in:.whitespacesAndNewlines).isEmpty).help("Enviar · ⌘ Return")
-            }.padding(10).background(Color(nsColor:.textBackgroundColor),in:RoundedRectangle(cornerRadius:16)).overlay(RoundedRectangle(cornerRadius:16).stroke(Color.secondary.opacity(0.15)))
-            HStack { Text(store.agentEnabled ? "Agente local · arquivos e terminal" : "Conversa · ⌘ Return para enviar"); Spacer(); Text(store.generationInfo) }.font(.system(size:10)).foregroundStyle(.secondary)
-        }.frame(maxWidth:900).padding(.horizontal,22).padding(.top,8).padding(.bottom,12).frame(maxWidth:.infinity)
+            HStack(alignment:.bottom,spacing:10) {
+                GeometryReader { geometry in
+                    GrowingMessageEditor(text:$store.input).accessibilityLabel("Mensagem")
+                        .onChange(of:geometry.size.width,initial:true) { _, width in layout.editorWidth = max(120,width - 20) }
+                }.frame(height:editorHeight)
+                if store.generating {
+                    Button { store.cancelReply() } label: { Image(systemName:"stop.fill").frame(width:24,height:26) }.help("Interromper resposta")
+                } else {
+                    Button { store.autoScroll = true; store.send() } label: { Image(systemName:"arrow.up").font(.body.bold()).frame(width:24,height:26) }
+                        .buttonStyle(.borderedProminent).keyboardShortcut(.return,modifiers:.command)
+                        .disabled(!store.running || store.input.trimmingCharacters(in:.whitespacesAndNewlines).isEmpty).help("Enviar · ⌘ Return")
+                }
+            }.padding(10).background(Color(nsColor:.textBackgroundColor),in:RoundedRectangle(cornerRadius:14))
+                .overlay(RoundedRectangle(cornerRadius:14).stroke(Color.secondary.opacity(0.18)))
+            ViewThatFits(in:.horizontal) {
+                HStack { Text("⌘ Return para enviar"); Spacer(); Text(store.generationInfo) }
+                Text("⌘ Return para enviar")
+            }.font(.caption2).foregroundStyle(.secondary)
+        }.frame(maxWidth:800).padding(.horizontal,16).padding(.vertical,12).frame(maxWidth:.infinity)
+    }
+    // Width-aware text measurement is supplied by the native editor below.
+    var editorHeight: CGFloat { min(layout.compactHeight ? 96 : 160,max(44,GrowingMessageEditor.measuredHeight(text:store.input,width:layout.editorWidth))) }
+}
+
+struct GrowingMessageEditor: NSViewRepresentable {
+    @Binding var text: String
+    static func measuredHeight(text:String,width:CGFloat) -> CGFloat {
+        let bounds = (text + "\n").boundingRect(with:NSSize(width:width,height:.greatestFiniteMagnitude),options:[.usesLineFragmentOrigin,.usesFontLeading],attributes:[.font:NSFont.systemFont(ofSize:NSFont.systemFontSize)])
+        return ceil(bounds.height) + 16
+    }
+    func makeNSView(context:Context) -> NSScrollView {
+        let scroll = NSTextView.scrollableTextView()
+        let editor = scroll.documentView as! NSTextView
+        editor.delegate = context.coordinator; editor.isRichText = false; editor.font = .systemFont(ofSize:NSFont.systemFontSize)
+        editor.drawsBackground = false; scroll.drawsBackground = false
+        editor.textContainerInset = NSSize(width:5,height:6); editor.isAutomaticQuoteSubstitutionEnabled = false
+        editor.isAutomaticDashSubstitutionEnabled = false; editor.isAutomaticTextReplacementEnabled = false
+        editor.isHorizontallyResizable = false; editor.textContainer?.widthTracksTextView = true
+        scroll.hasVerticalScroller = true; scroll.autohidesScrollers = true; editor.setAccessibilityLabel("Mensagem")
+        return scroll
+    }
+    func updateNSView(_ scroll:NSScrollView,context:Context) {
+        context.coordinator.parent = self
+        if let editor = scroll.documentView as? NSTextView, editor.string != text { editor.string = text }
+    }
+    func makeCoordinator() -> Coordinator { Coordinator(self) }
+    class Coordinator: NSObject,NSTextViewDelegate {
+        var parent:GrowingMessageEditor
+        init(_ parent:GrowingMessageEditor) { self.parent = parent }
+        func textDidChange(_ notification:Notification) { if let editor = notification.object as? NSTextView { parent.text = editor.string } }
+    }
+}
+// Only live user scrolling changes follow mode. Layout and streaming updates do not.
+struct ScrollIntentObserver: NSViewRepresentable {
+    var onScroll:(Bool)->Void
+    func makeNSView(context:Context) -> Marker { let view = Marker(); view.onScroll = onScroll; return view }
+    func updateNSView(_ view:Marker,context:Context) { view.onScroll = onScroll }
+    class Marker:NSView {
+        var onScroll:((Bool)->Void)?
+        var token:NSObjectProtocol?
+        override func hitTest(_ point:NSPoint)->NSView? { nil }
+        override func viewDidMoveToWindow() {
+            super.viewDidMoveToWindow()
+            if let token { NotificationCenter.default.removeObserver(token) }
+            guard window != nil else { return }
+            DispatchQueue.main.async { [weak self] in
+                guard let self, let scroll = self.enclosingScrollView else { return }
+                self.token = NotificationCenter.default.addObserver(forName:NSScrollView.didLiveScrollNotification,object:scroll,queue:.main) { [weak self,weak scroll] _ in
+                    guard let scroll, let document = scroll.documentView else { return }
+                    self?.onScroll?(document.bounds.height - scroll.contentView.bounds.maxY < 36)
+                }
+            }
+        }
+        deinit { if let token { NotificationCenter.default.removeObserver(token) } }
     }
 }

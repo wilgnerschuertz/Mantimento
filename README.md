@@ -6,7 +6,15 @@ Mantimento é um aplicativo local para guardar e usar recursos digitais: hoje, m
 de IA e ferramentas de desenvolvimento; futuramente, outros acervos offline. Versão atual: macOS Apple Silicon,
 SwiftUI, MLX e Qwen3.5. Histórico Git local na branch `main`.
 
-## Próxima versão: 0.2.0
+## Interface 0.2.1 em avaliação
+
+Navegação separada para Conversa, Modelos e Backup offline, com ajustes próprios,
+temas e layout adaptável. Consulte [RELEASE-0.2.1.md](RELEASE-0.2.1.md).
+Para revisão visual isolada: `python3 tests/layout_preview.py chat` ou `fresh`;
+abra `dist/LayoutPreview.app`. O cenário usa uma pasta temporária e não conversa
+com um servidor. A compilação do produto continua em `bash source/package.sh`.
+
+## Catálogo e kit offline: 0.2.0
 
 Catálogo de modelos MLX, gerenciamento de downloads e kit de recuperação offline.
 Consulte [RELEASE-0.2.0.md](RELEASE-0.2.0.md) e o roteiro [TESTES-BETA.md](TESTES-BETA.md).

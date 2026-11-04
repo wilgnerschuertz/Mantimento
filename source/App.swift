@@ -29,6 +29,7 @@ struct Message: Identifiable, Codable, Equatable {
     var id = UUID()
     var role: String
     var content: String
+    var modelName: String? = nil
 }
 struct Conversation: Identifiable, Codable {
     var id = UUID()
@@ -77,6 +78,17 @@ struct DownloadModel: Identifiable {
     var operationEnvironment: [String:String] = [:]
     @Published var newModel = ""
     @Published var showSettings = false
+    @Published var lastAction: String? = nil
+    @Published var lastActionFailed = false
+    @Published var replyFailed = false
+    var lastActionEnvironment: [String:String] = [:]
+    var environmentReady: Bool { FileManager.default.fileExists(atPath:dataDir.appendingPathComponent("venv/bin/python").path) }
+    var displayModel: String {
+        DownloadModel.catalog.first(where:{$0.id == modelID})?.title ?? URL(fileURLWithPath:modelID).lastPathComponent
+    }
+    var canStart: Bool { environmentReady && availableModels.contains(modelID) }
+    func retryLastAction() { if let action = lastAction { operationEnvironment = lastActionEnvironment; run(action) } }
+    func cancelReply() { request?.cancel(); approve(false); commandProcess?.terminate(); status = "Resposta interrompida." }
     @Published var maxTokens = 2048
     @Published var temperature = 0.6
     @Published var chatQuery = ""
@@ -85,6 +97,7 @@ struct DownloadModel: Identifiable {
     @Published var input = ""
     @Published var status = "Prepare o ambiente, baixe o modelo e inicie."
     @Published var showLogs = false
+    var logsAfterSettings = false
     @Published var logs = ""
     @Published var working = false
     @Published var running = false
@@ -100,6 +113,7 @@ struct DownloadModel: Identifiable {
         for entry in DownloadModel.catalog where !models.contains(entry.id) { models.append(entry.id) }
         AppIdentity.defaults.set(models,forKey:"models")
         refreshDownloads()
+        status = canStart ? "Tudo pronto. Inicie o modelo para conversar." : environmentReady ? "Escolha e baixe um modelo para começar." : "Prepare o ambiente para começar."
         try? FileManager.default.createDirectory(at: dataDir, withIntermediateDirectories: true)
         if let data = try? Data(contentsOf: archive), let saved = try? JSONDecoder().decode([Conversation].self, from: data), !saved.isEmpty {
             conversations = saved; selected = saved[0].id; messages = saved[0].messages; workspace = saved[0].workspace ?? ""
@@ -149,12 +163,12 @@ struct DownloadModel: Identifiable {
         else { conversations.insert(conversation, at: 0) }
         if let data = try? JSONEncoder().encode(conversations) { try? data.write(to: archive, options: .atomic) }
     }
-    func newChat() { guard !generating else { return }; save(); selected = nil; workspace = ""; generationInfo = ""; fullControl = false; messages = []; input = ""; ensureWorkspace(); save() }
-    func select(_ chat: Conversation) { guard !generating else { return }; save(); generationInfo = ""; selected = chat.id; messages = chat.messages; workspace = chat.workspace ?? ""; fullControl = false; input = ""; ensureWorkspace() }
+    func newChat() { guard !generating else { return }; replyFailed = false; save(); selected = nil; workspace = ""; generationInfo = ""; fullControl = false; messages = []; input = ""; ensureWorkspace(); save() }
+    func select(_ chat: Conversation) { guard !generating else { return }; replyFailed = false; save(); generationInfo = ""; selected = chat.id; messages = chat.messages; workspace = chat.workspace ?? ""; fullControl = false; input = ""; ensureWorkspace() }
     func export() {
         let panel = NSSavePanel(); panel.nameFieldStringValue = "conversa.txt"
         guard panel.runModal() == .OK, let url = panel.url else { return }
-        do { try messages.map { "\($0.role == "user" ? "Você" : "Qwen")\n\($0.content)" }.joined(separator: "\n\n").write(to: url, atomically: true, encoding: .utf8) }
+        do { try messages.map { "\($0.role == "user" ? "Você" : ($0.modelName ?? "Assistente"))\n\($0.content)" }.joined(separator: "\n\n").write(to: url, atomically: true, encoding: .utf8) }
         catch { status = "Falha ao exportar: \(error.localizedDescription)" }
     }
     func log(_ s: String) {
@@ -189,11 +203,12 @@ struct DownloadModel: Identifiable {
     }
     func run(_ action: String) {
         guard process == nil else { return }
-        stopping = false; operation = action; downloadReceived = 0; downloadTotal = 0; eventBuffer = ""
+        stopping = false; replyFailed = false; lastAction = action; lastActionFailed = false; operation = action; downloadReceived = 0; downloadTotal = 0; eventBuffer = ""
         guard let script = Bundle.main.url(forResource: "runtime", withExtension: "sh") else { status = "Script de execução ausente."; return }
         let p = Process(); p.executableURL = URL(fileURLWithPath: "/bin/bash"); p.arguments = [script.path, action, modelID]
         var environment = ProcessInfo.processInfo.environment
         environment["MANTIMENTO_DATA"] = dataDir.path
+        lastActionEnvironment = operationEnvironment
         environment.merge(operationEnvironment) { _, new in new }; operationEnvironment = [:]
         p.environment = environment
         let pipe = Pipe(); p.standardOutput = pipe; p.standardError = pipe
@@ -205,14 +220,14 @@ struct DownloadModel: Identifiable {
         }
         p.terminationHandler = { [weak self] proc in Task { @MainActor in
             guard let self else { return }
-            self.operation = ""; self.process = nil; self.working = false; self.running = false; self.refreshDownloads()
+            self.lastActionFailed = !self.stopping && proc.terminationStatus != 0; self.operation = ""; self.process = nil; self.working = false; self.running = false; self.refreshDownloads()
             self.status = self.stopping ? "Processo desligado." : proc.terminationStatus == 0 ? "Etapa concluída." : "Processo encerrado (\(proc.terminationStatus)). Consulte os registros."
         }}
         do {
             try p.run(); process = p; working = true
             status = action == "start" ? "Iniciando servidor local…" : action == "setup" ? "Preparando Python e MLX…" : "Executando \(action)… Consulte o progresso e os registros."
             if action == "start" { Task { await readiness(p) } }
-        } catch { status = error.localizedDescription; pipe.fileHandleForReading.readabilityHandler = nil }
+        } catch { lastActionFailed = true; operation = ""; status = error.localizedDescription; pipe.fileHandleForReading.readabilityHandler = nil }
     }
     func readiness(_ p: Process) async {
         for _ in 0..<180 {
@@ -240,7 +255,7 @@ struct DownloadModel: Identifiable {
         guard messages.reduce(0, { $0 + $1.content.count }) + text.count < 16000 else {
             status = "Conversa longa para este modo econômico. Inicie uma nova conversa."; return
         }
-        generationInfo = ""; messages.append(Message(role: "user", content: text)); input = ""; save(); generating = true; status = "Gerando resposta…"
+        replyFailed = false; generationInfo = ""; messages.append(Message(role: "user", content: text)); input = ""; save(); generating = true; status = "Gerando resposta…"
         let context = messages.map { ["role": $0.role, "content": $0.content] }
         request = Task {
             defer { generating = false; request = nil }
@@ -251,7 +266,7 @@ struct DownloadModel: Identifiable {
                 let (bytes, response) = try await URLSession.shared.bytes(for: r)
                 guard (response as? HTTPURLResponse)?.statusCode == 200 else { throw NSError(domain: "Servidor", code: (response as? HTTPURLResponse)?.statusCode ?? 0, userInfo: [NSLocalizedDescriptionKey: "O servidor recusou o pedido. Consulte os registros."]) }
                 let answerID = UUID()
-                messages.append(Message(id: answerID, role: "assistant", content: ""))
+                messages.append(Message(id: answerID, role: "assistant", content: "", modelName:displayModel))
                 var finished = false
                 let started = Date()
                 var firstContent: Date?
@@ -284,7 +299,7 @@ struct DownloadModel: Identifiable {
                 generationInfo = String(format:"Primeiro texto: %.1f s · Total: %.1f s",latency,Date().timeIntervalSince(started))
                 if status != "Resposta atingiu o limite configurado." { status = finished ? "Resposta em \(Int(Date().timeIntervalSince(started))) s • no seu Mac" : "Conexão interrompida. A resposta parcial foi salva." }
 
-            } catch { save(); if !Task.isCancelled { status = "Falha: \(error.localizedDescription)" } }
+            } catch { save(); if !Task.isCancelled { replyFailed = true; status = "Falha: \(error.localizedDescription)" } }
         }
     }
 }
