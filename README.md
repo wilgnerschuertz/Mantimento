@@ -144,7 +144,7 @@ Para ajudar com a avaliação inicial, siga o [roteiro de testes beta](TESTES-BE
 
 O código atual desliga o modelo após 10 minutos sem pedidos para liberar sua memória. Em **Ajustes → Memória**, escolha 5, 10 ou 30 minutos, ou **Nunca**. Respostas e ações em andamento impedem o desligamento. Depois, use **Iniciar modelo** para retomar; os pesos serão carregados novamente na próxima resposta.
 
-Durante o streaming, a resposta é exibida como texto simples e recebe Markdown ao terminar, evitando refazer a formatação a cada atualização. O tempo de primeiro texto inclui agora a espera pelo servidor. Essas alterações estão no código e no build local; ainda não fazem parte da release macOS 0.2.1. Não há benchmark de ganho na velocidade de inferência nesta rodada.
+Durante o streaming, a resposta é exibida como texto simples e recebe Markdown ao terminar, evitando refazer a formatação a cada atualização. O tempo de primeiro texto inclui agora a espera pelo servidor. Essas alterações estão no código e no build local; ainda não fazem parte da release macOS 0.2.1. Não há comparação A/B de ganho na velocidade de inferência nesta rodada. A [medição de referência no M4 com 16 GiB](BENCHMARK-MACOS.md) registrou aproximadamente 18 tokens/s com Qwen3.5 9B e pico de alocações MLX de 5,38 GB.
 
 ### Desenvolvimento no Mac
 
