@@ -3,6 +3,12 @@
 Cliente local e agente de desenvolvimento offline. Versão atual: macOS Apple Silicon,
 SwiftUI, MLX e Qwen3.5. Histórico Git local na branch `main`.
 
+## Distribuição de teste 0.1.0
+
+Consulte `RELEASE-0.1.0.md`. Gere o ZIP com `bash source/package.sh`.
+O arquivo em `dist/` deve ser anexado aos Assets da release, separado do código-fonte.
+A distribuição inicial é Apple Silicon, sem Developer ID/notarização.
+
 ## Desenvolvimento
 
 - `bash source/build.sh`: compila o aplicativo macOS e aplica assinatura local.

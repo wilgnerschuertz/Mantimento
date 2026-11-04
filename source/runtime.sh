@@ -1,5 +1,6 @@
 #!/bin/bash
 set -euo pipefail
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 ROOT="${QWEN_LOCAL_DATA:-$HOME/Library/Application Support/QwenLocal}"
 export UV_PYTHON_INSTALL_DIR="$ROOT/python"
 MODEL="${2:-mlx-community/Qwen3.5-9B-4bit}"
@@ -11,10 +12,23 @@ setup)
   echo "Ambiente já preparado."
   exit 0
  fi
- /usr/bin/python3 -m pip install --disable-pip-version-check --target "$ROOT/bootstrap" 'uv>=0.8,<1'
- export PYTHONPATH="$ROOT/bootstrap"
- /usr/bin/python3 -m uv venv --python 3.12 "$ROOT/venv"
- /usr/bin/python3 -m uv pip install --python "$ROOT/venv/bin/python" mlx-lm==0.32.2 huggingface-hub==2.4.0
+ if [ "$(/usr/bin/uname -m)" != "arm64" ]; then
+  echo "Esta versão requer um Mac Apple Silicon (M1 ou posterior)."; exit 1
+ fi
+ UV="$ROOT/tools/uv"
+ export UV_CACHE_DIR="$ROOT/cache/uv"
+ if [ ! -x "$UV" ]; then
+  bootstrap_tmp="$(/usr/bin/mktemp -d "$ROOT/bootstrap.XXXXXX")"
+  trap '/bin/rm -rf "$bootstrap_tmp"' EXIT
+  /usr/bin/curl --proto '=https' --tlsv1.2 -fL --retry 2 --connect-timeout 20 -o "$bootstrap_tmp/uv.tar.gz" https://github.com/astral-sh/uv/releases/download/0.13.7/uv-aarch64-apple-darwin.tar.gz
+  echo "81b811b57e4624df7ed3aac148e0359100d9962f3d9dce00aec533dc2e086731  $bootstrap_tmp/uv.tar.gz" | /usr/bin/shasum -a 256 -c -
+  /usr/bin/tar -xzf "$bootstrap_tmp/uv.tar.gz" -C "$bootstrap_tmp"
+  /bin/mkdir -p "$ROOT/tools"
+  /bin/cp "$bootstrap_tmp/uv-aarch64-apple-darwin/uv" "$UV"
+  /bin/chmod +x "$UV"
+ fi
+ "$UV" venv --python 3.12 "$ROOT/venv"
+ "$UV" pip install --python "$ROOT/venv/bin/python" -r "$SCRIPT_DIR/requirements-macos-arm64.txt"
  "$ROOT/venv/bin/python" -c 'import mlx_lm; print("Ambiente pronto.")'
  ;;
 download)

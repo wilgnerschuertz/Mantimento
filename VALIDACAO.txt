@@ -64,3 +64,13 @@ PASSOU: janela e folha de ajustes inspecionadas por acessibilidade e screenshot.
 Não houve benchmark comparativo de CPU/RAM ou nova medição de geração MLX.
 O motor e os parâmetros de execução MLX foram mantidos. Ganho esperado é de
 fluidez do cliente; não se afirma aumento de tokens por segundo do modelo.
+
+PRIMEIRA DISTRIBUIÇÃO 0.1.0 — 04/11/2026
+PASSOU: bootstrap em pasta limpa usando uv standalone com SHA-256 fixo,
+sem invocar Python pré-instalado. Python 3.12 e 34 pacotes preparados.
+PASSOU: dependências fixadas conferidas no ambiente recém-instalado.
+PASSOU: compilação arm64, assinatura ad hoc, compactação e teste de integridade
+ZIP, extração, permissão executável e assinatura do .app extraído.
+A limitação anterior de exigir Python prévio foi resolvida.
+Não há assinatura Developer ID nem notarização. Não foi executado em outro Mac
+ou outra versão do macOS. O pacote não inclui modelos nem dados do usuário.

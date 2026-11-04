@@ -99,3 +99,10 @@ no chat. Acompanhar resposta pode ser desmarcado para ler durante a geração.
 O chat exibe tempo até o primeiro texto e tempo total ao concluir a resposta.
 Streaming agrupado a cada ~100 ms e mensagens antigas não reprocessadas quando
 inalteradas. Documentos são lidos/pesquisados fora da fila principal da interface.
+
+DISTRIBUIÇÃO DE TESTE 0.1.0 — 04/11/2026
+Primeira versão para compartilhar (numeração interna anterior 0.4).
+O preparo não exige mais Python prévio: baixa uv standalone 0.13.7 do fornecedor,
+valida SHA-256 e instala Python e dependências em pasta do usuário.
+Dependências Python fixadas em requirements-macos-arm64.txt.
+ZIP: bash source/package.sh. Instruções para outro Mac: RELEASE-0.1.0.md.
