@@ -60,7 +60,7 @@ struct ModelsView: View {
                                 }
                             }
                             Text("Use modelos de texto compatíveis com MLX-LM. GGUF e modelos de visão exigem outros motores.").font(.caption).foregroundStyle(.secondary)
-                        }.padding(.top,12).disabled(store.process != nil || store.generating)
+                        }.padding(.top,12).disabled(store.process != nil || store.inferenceBusy)
                     }
                 }
             }.padding(24).frame(maxWidth:980).frame(maxWidth:.infinity)
@@ -88,7 +88,7 @@ struct ModelCard:View {
                 Spacer(minLength:4)
                 Menu {
                     Link("Detalhes e licença ↗",destination:URL(string:"https://huggingface.co/" + entry.id)!)
-                    if installed { Button("Mover para a Lixeira…") { store.removeModel(entry.id) }.disabled(store.process != nil || store.generating) }
+                    if installed { Button("Mover para a Lixeira…") { store.removeModel(entry.id) }.disabled(store.process != nil || store.inferenceBusy) }
                 } label: { Image(systemName:"ellipsis") }.menuStyle(.borderlessButton).fixedSize().accessibilityLabel("Opções de \(entry.title)")
             }
             Text(entry.detail).font(.callout).foregroundStyle(.secondary).frame(minHeight:38,alignment:.topLeading).fixedSize(horizontal:false,vertical:true)
@@ -103,9 +103,9 @@ struct ModelCard:View {
                 Label(installed ? "No seu Mac" : "Disponível",systemImage:installed ? "checkmark.circle.fill" : "arrow.down.circle").font(.caption).foregroundStyle(installed ? Color.green : Color.secondary)
                 Spacer(minLength:4)
                 if installed {
-                    Button(selected ? "Selecionado" : "Usar") { store.modelID = entry.id }.disabled(selected || store.process != nil || store.generating)
+                    Button(selected ? "Selecionado" : "Usar") { store.modelID = entry.id }.disabled(selected || store.process != nil || store.inferenceBusy)
                 } else {
-                    Button("Baixar") { store.download(entry.id) }.buttonStyle(.borderedProminent).disabled(!store.environmentReady || store.process != nil || store.generating)
+                    Button("Baixar") { store.download(entry.id) }.buttonStyle(.borderedProminent).disabled(!store.environmentReady || store.process != nil || store.inferenceBusy)
                 }
             }
         }.overlay(RoundedRectangle(cornerRadius:14).stroke(selected ? Color.accentColor.opacity(0.7) : .clear,lineWidth:1.5))
@@ -187,6 +187,21 @@ struct SettingsView:View {
                     Text("Encerra o servidor para liberar a memória do modelo. Respostas e ações em andamento não são interrompidas. Para voltar, clique em Iniciar modelo; a primeira resposta precisará carregar os pesos novamente.")
                         .font(.caption).foregroundStyle(.secondary)
                 }
+                Section("Acesso pela rede") {
+                    Toggle("Ativar ao abrir o Mantimento",isOn:$store.webAutoStart)
+                    Text(store.webStatus).font(.callout)
+                    if store.webEnabled || store.webStarting {
+                        Button("Desligar acesso pela rede") { store.stopWebAccess() }
+                        if store.webEnabled {
+                            ForEach(store.webAddresses,id:\.self) { address in
+                                HStack { Text(address).font(.caption).textSelection(.enabled); Spacer(); Button("Copiar") { NSPasteboard.general.clearContents(); NSPasteboard.general.setString(address,forType:.string) } }
+                            }
+                            Button("Copiar chave de acesso") { NSPasteboard.general.clearContents(); NSPasteboard.general.setString(store.webKey,forType:.string) }
+                            Text("A chave muda a cada ativação. Inicie o modelo neste Mac antes de conversar. O acesso remoto oferece somente chat de texto, sem arquivos ou terminal.").font(.caption).foregroundStyle(.secondary)
+                        }
+                    } else { Button("Ativar acesso pela rede") { store.startWebAccess() } }
+                    Text("HTTP sem criptografia: use somente em uma rede confiável e não encaminhe a porta no roteador. O Mac deve permanecer ligado, acordado e com o app aberto.").font(.caption).foregroundStyle(.secondary)
+                }
                 Section("Diagnóstico") {
                     Button("Ver registros") { store.logsAfterSettings = true; store.showSettings = false }
                     Text("Os registros podem conter caminhos e conteúdo de arquivos. Revise antes de compartilhar.").font(.caption).foregroundStyle(.secondary)
@@ -201,6 +216,7 @@ struct SettingsView:View {
 struct OperationStatusView:View {
     @ObservedObject var store:Store
     var title:String {
+        if store.remoteGenerating { return "Respondendo pela rede" }
         if store.summarizing { return "Resumindo conversa" }
         if store.generating { return "Respondendo" }
         if store.replyFailed { return "Não foi possível responder" }
@@ -219,7 +235,7 @@ struct OperationStatusView:View {
         VStack(spacing:0) {
             Divider()
             HStack(spacing:10) {
-                if store.working || store.generating { ProgressView().controlSize(.small) }
+                if store.working || store.inferenceBusy { ProgressView().controlSize(.small) }
                 else { Image(systemName:store.lastActionFailed ? "exclamationmark.circle" : store.running ? "checkmark.circle" : "circle").foregroundStyle(store.lastActionFailed ? Color.orange : Color.secondary) }
                 VStack(alignment:.leading,spacing:3) {
                     Text(title).font(.caption.weight(.semibold))

@@ -17,6 +17,6 @@ with tempfile.TemporaryDirectory(prefix='mantimento-agent-test-') as temporary:
     (root/'Store.swift').write_text(store)
     (root/'Agent.swift').write_text(agent)
     binary = root/'test'
-    subprocess.run(['swiftc','-parse-as-library',str(root/'Store.swift'),str(root/'Agent.swift'),str(project/'tests/TestMain.swift'),'-o',str(binary)],check=True)
+    subprocess.run(['swiftc','-parse-as-library',str(project/'source/LANServer.swift'),str(project/'source/LANStore.swift'),str(root/'Store.swift'),str(root/'Agent.swift'),str(project/'tests/TestMain.swift'),'-o',str(binary)],check=True)
     env = dict(os.environ,TEST_DATA=str(root/'data'),TEST_RUNNER=str(project/'source/command_runner.py'),TEST_PYTHON='/usr/bin/python3')
     subprocess.run([str(binary)],env=env,check=True,timeout=300)

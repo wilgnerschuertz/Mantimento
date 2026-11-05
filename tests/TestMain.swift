@@ -143,13 +143,14 @@ import Combine
             guard s.summaryDraft == nil, s.selected == currentID else { fatalError("Resumo cancelado criou continuação") }
             for marker in ["__SUMMARY_ERROR__","__SUMMARY_TRUNCATED__","__SUMMARY_OVERSIZE__"] {
                 s.messages = [Message(role:"user",content:marker)]; s.save()
-                let before = try Data(contentsOf:s.archive)
+                let before = try JSONSerialization.data(withJSONObject:JSONSerialization.jsonObject(with:Data(contentsOf:s.archive)),options:.sortedKeys)
                 s.summarizeConversation()
                 for _ in 0..<100 {
                     if !s.generating { break }
                     try await Task.sleep(nanoseconds:20_000_000)
                 }
-                guard s.summaryDraft == nil, try Data(contentsOf:s.archive) == before else { fatalError("Falha de resumo mudou arquivo ou gerou revisão inválida") }
+                let after = try JSONSerialization.data(withJSONObject:JSONSerialization.jsonObject(with:Data(contentsOf:s.archive)),options:.sortedKeys)
+                guard s.summaryDraft == nil, after == before else { fatalError("Falha de resumo mudou conteúdo ou gerou revisão inválida: \(marker)") }
             }
             s.summaryDraft = SummaryDraft(sourceID:s.selected!); s.summaryText = "Resumo de teste"
             let archiveBackup = s.archive.appendingPathExtension("test-backup")

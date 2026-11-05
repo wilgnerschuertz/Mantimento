@@ -146,6 +146,12 @@ O código atual desliga o modelo após 10 minutos sem pedidos para liberar sua m
 
 Durante o streaming, a resposta é exibida como texto simples e recebe Markdown ao terminar, evitando refazer a formatação a cada atualização. O tempo de primeiro texto inclui agora a espera pelo servidor. Essas alterações estão no código e no build local; ainda não fazem parte da release macOS 0.2.1. Não há comparação A/B de ganho na velocidade de inferência nesta rodada. A [medição de referência no M4 com 16 GiB](BENCHMARK-MACOS.md) registrou aproximadamente 18 tokens/s em pedidos curtos com Qwen3.5 9B. No [teste prolongado](VALIDACAO-CONTEXTO-MACOS.md), a mediana foi 10,47 tokens/s, o pico reportado pelo MLX foi 6,01 GB e houve aumento de swap do sistema.
 
+### Acesso pelo navegador e API — em desenvolvimento
+
+O Mac pode compartilhar seu modelo com navegadores de Windows, Linux, macOS e celulares na mesma rede. Ative em **Ajustes → Acesso pela rede**, copie o endereço e a chave temporária e inicie o modelo no Mac. A página funciona sem serviços externos. Esta versão oferece chat de texto e API sem streaming, com uma geração por vez entre o app e os clientes remotos.
+
+O acesso usa HTTP: utilize somente uma rede confiável. O módulo ainda não está no ZIP da release 0.2.1. Consulte [configuração, API e limites](ACESSO-REDE.md).
+
 ### Conversas longas no Mac — em desenvolvimento
 
 Quando o histórico cresce, **Conversa extensa** aparece acima da mensagem. Use **Resumir e continuar…** ali ou no menu da conversa. O modelo resume localmente em partes; você revisa e edita o texto antes de criar uma continuação. A conversa original permanece intacta e pode ser aberta pelo menu **Abrir conversa original**. A continuação usa a mesma pasta, conserva a mensagem que você estava digitando e volta a revisar ações.
@@ -163,6 +169,7 @@ bash source/build.sh      # Compila o app com assinatura local
 bash source/package.sh    # Gera ZIP e checksum em dist/
 python3 tests/run.py      # Histórico, migração, arquivos e agente em pasta isolada
 python3 tests/stream.py   # Integridade e agrupamento do streaming
+python3 tests/lan.py      # Gateway web/API isolado em loopback
 python3 tests/models.py   # Cache, download e remoção recuperável
 # Resumo real com Qwen3.5 9B já instalado:
 python3 tests/context_inference.py "/caminho/dos/dados/Mantimento"

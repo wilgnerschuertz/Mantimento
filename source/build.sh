@@ -3,7 +3,8 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 APP='Mantimento.app/Contents'
 mkdir -p "$APP/MacOS" "$APP/Resources"
-swiftc -parse-as-library -O -target arm64-apple-macosx14.0 source/App.swift source/Agent.swift source/AgentViews.swift source/ChatViews.swift source/SettingsView.swift -o "$APP/MacOS/Mantimento"
+swiftc -parse-as-library -O -target arm64-apple-macosx14.0 source/App.swift source/Agent.swift source/AgentViews.swift source/ChatViews.swift source/SettingsView.swift source/LANServer.swift source/LANStore.swift -o "$APP/MacOS/Mantimento"
+cp source/web.html source/web.js "$APP/Resources/"
 cp source/requirements-macos-arm64.txt "$APP/Resources/requirements-macos-arm64.txt"
 cp source/command_runner.py "$APP/Resources/command_runner.py"
 cp source/model_manager.py source/offline_kit.py source/prepare_offline.sh source/restore_offline.sh "$APP/Resources/"
@@ -19,6 +20,7 @@ cat > "$APP/Info.plist" <<'PLIST'
 <key>CFBundleShortVersionString</key><string>0.2.1</string>
 <key>CFBundleVersion</key><string>4</string>
 <key>LSMinimumSystemVersion</key><string>14.0</string>
+<key>NSLocalNetworkUsageDescription</key><string>Compartilhar o chat local com dispositivos da sua rede quando você ativar o acesso nos Ajustes.</string>
 <key>NSHighResolutionCapable</key><true/>
 <key>NSAppTransportSecurity</key><dict><key>NSAllowsLocalNetworking</key><true/></dict>
 </dict></plist>

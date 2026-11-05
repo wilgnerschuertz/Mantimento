@@ -127,7 +127,7 @@ struct ContentView: View {
             }
             Divider()
             Button { store.newChat(); layout.page = .chat } label: { Label("Nova conversa",systemImage:"square.and.pencil").frame(maxWidth:.infinity).padding(.vertical,4) }
-                .buttonStyle(.borderedProminent).disabled(store.generating).keyboardShortcut("n",modifiers:.command)
+                .buttonStyle(.borderedProminent).disabled(store.inferenceBusy).keyboardShortcut("n",modifiers:.command)
             TextField("Buscar conversas",text:$store.chatQuery).textFieldStyle(.roundedBorder)
             ScrollView {
                 LazyVStack(alignment:.leading,spacing:4) {
@@ -135,7 +135,7 @@ struct ContentView: View {
                         Button { store.select(conversation); layout.page = .chat } label: {
                             Text(conversation.title).lineLimit(2).frame(maxWidth:.infinity,alignment:.leading).padding(10)
                                 .background(store.selected == conversation.id && layout.page == .chat ? Color.secondary.opacity(0.12) : Color.clear,in:RoundedRectangle(cornerRadius:8))
-                        }.buttonStyle(.plain).disabled(store.generating)
+                        }.buttonStyle(.plain).disabled(store.inferenceBusy)
                     }
                 }
             }
@@ -183,17 +183,17 @@ struct ContentView: View {
     var modelControl: some View {
         HStack(spacing:8) {
             if store.process == nil {
-                Button("Iniciar modelo",systemImage:"play.fill") { store.run("start") }.disabled(!store.canStart || store.generating)
+                Button("Iniciar modelo",systemImage:"play.fill") { store.run("start") }.disabled(!store.canStart || store.inferenceBusy)
             } else {
                 Button("Desligar",systemImage:"power") { store.stop() }
             }
             Menu {
                 Button("Escolher modelo") { layout.page = .models }
-                Button("Resumir e continuar…") { store.summarizeConversation() }.disabled(!store.running || store.generating || store.messages.isEmpty)
+                Button("Resumir e continuar…") { store.summarizeConversation() }.disabled(!store.running || store.inferenceBusy || store.messages.isEmpty)
                 if let origin = store.originConversation {
-                    Button("Abrir conversa original") { store.select(origin) }.disabled(store.generating)
+                    Button("Abrir conversa original") { store.select(origin) }.disabled(store.inferenceBusy)
                 }
-                Button("Exportar conversa…") { store.export() }.disabled(store.messages.isEmpty || store.generating)
+                Button("Exportar conversa…") { store.export() }.disabled(store.messages.isEmpty || store.inferenceBusy)
             } label: { Image(systemName:"ellipsis.circle") }.menuStyle(.borderlessButton).fixedSize().help("Opções da conversa")
         }.fixedSize()
     }
@@ -212,7 +212,7 @@ struct ContentView: View {
         Button {
             store.agentEnabled = agent
             store.input = title == "Criar um projeto" ? "Crie um CRUD simples em Python e SQLite nesta pasta, sem dependências externas. Teste as operações." : "Leia os documentos desta pasta e resuma os principais pontos."
-        } label: { Label(title,systemImage:"arrow.up.left").padding(5) }.buttonStyle(.bordered).disabled(store.generating)
+        } label: { Label(title,systemImage:"arrow.up.left").padding(5) }.buttonStyle(.bordered).disabled(store.inferenceBusy)
     }
     var composer: some View {
         VStack(spacing:8) {
@@ -232,7 +232,7 @@ struct ContentView: View {
                 } else {
                     Button { store.autoScroll = true; store.send() } label: { Image(systemName:"arrow.up").font(.body.bold()).frame(width:24,height:26) }
                         .buttonStyle(.borderedProminent).keyboardShortcut(.return,modifiers:.command)
-                        .disabled(!store.running || store.input.trimmingCharacters(in:.whitespacesAndNewlines).isEmpty).help("Enviar · ⌘ Return")
+                        .disabled(!store.running || store.inferenceBusy || store.input.trimmingCharacters(in:.whitespacesAndNewlines).isEmpty).help("Enviar · ⌘ Return")
                 }
             }.padding(10).background(Color(nsColor:.textBackgroundColor),in:RoundedRectangle(cornerRadius:14))
                 .overlay(RoundedRectangle(cornerRadius:14).stroke(Color.secondary.opacity(0.18)))
@@ -249,7 +249,7 @@ struct ContentView: View {
     }
     var summarizeButton: some View {
         Button("Resumir e continuar…") { store.summarizeConversation() }
-            .font(.caption).disabled(!store.running || store.generating || store.messages.isEmpty)
+            .font(.caption).disabled(!store.running || store.inferenceBusy || store.messages.isEmpty)
     }
     // Width-aware text measurement is supplied by the native editor below.
     var editorHeight: CGFloat { min(layout.compactHeight ? 96 : 160,max(44,GrowingMessageEditor.measuredHeight(text:store.input,width:layout.editorWidth))) }

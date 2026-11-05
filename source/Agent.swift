@@ -88,7 +88,7 @@ enum LocalTools {
         catch { status = error.localizedDescription }
     }
     func changeWorkspace() {
-        guard !generating else { return }
+        guard !inferenceBusy else { return }
         let panel = NSOpenPanel(); panel.canChooseDirectories = true; panel.canChooseFiles = false; panel.canCreateDirectories = true
         guard panel.runModal() == .OK, let url = panel.url else { return }
         workspace = url.path; save()
@@ -162,7 +162,7 @@ enum LocalTools {
     }
     func sendAgent() {
         let text = input.trimmingCharacters(in:.whitespacesAndNewlines)
-        guard running, !generating, !text.isEmpty else { return }
+        guard running, !inferenceBusy, !text.isEmpty else { return }
         guard ContextBudget.size(messages,input:text) <= ContextBudget.limit else {
             status = "Contexto cheio. Use Resumir e continuar antes de pedir novas ações."; return
         }

@@ -21,11 +21,11 @@ struct WorkspaceBar: View {
             Button("Copiar caminho") { NSPasteboard.general.clearContents(); NSPasteboard.general.setString(store.workspace,forType:.string) }
         } label: {
             Label(store.workspace.hasPrefix(store.dataDir.appendingPathComponent("Workspaces").path + "/") ? "Pasta desta conversa" : URL(fileURLWithPath:store.workspace).lastPathComponent,systemImage:"folder").font(.caption).lineLimit(1).truncationMode(.middle)
-        }.menuStyle(.borderlessButton).frame(idealWidth:200,maxWidth:230,alignment:.leading).help(store.workspace).disabled(store.generating)
+        }.menuStyle(.borderlessButton).frame(idealWidth:200,maxWidth:230,alignment:.leading).help(store.workspace).disabled(store.inferenceBusy)
     }
-    var modes:some View { Picker("Modo",selection:$store.agentEnabled) { Text("Conversa").tag(false); Text("Agente").tag(true) }.pickerStyle(.segmented).labelsHidden().frame(width:170).disabled(store.generating) }
+    var modes:some View { Picker("Modo",selection:$store.agentEnabled) { Text("Conversa").tag(false); Text("Agente").tag(true) }.pickerStyle(.segmented).labelsHidden().frame(width:170).disabled(store.inferenceBusy) }
     @ViewBuilder var permissions:some View {
-        if store.agentEnabled { Picker("Permissões",selection:$store.fullControl) { Text("Revisar ações").tag(false); Text("Controle total").tag(true) }.labelsHidden().frame(width:165).disabled(store.generating) }
+        if store.agentEnabled { Picker("Permissões",selection:$store.fullControl) { Text("Revisar ações").tag(false); Text("Controle total").tag(true) }.labelsHidden().frame(width:165).disabled(store.inferenceBusy) }
     }
 
 }

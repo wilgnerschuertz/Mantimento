@@ -59,7 +59,7 @@ import AppKit
             """
         fixture = fixture.replace('        }\n    }.defaultSize', extra+'\n        }\n    }.defaultSize')
     (build/'Preview.swift').write_text(fixture)
-    subprocess.run(['swiftc','-parse-as-library',str(build/'Store.swift'),str(project/'source/Agent.swift'),str(project/'source/AgentViews.swift'),str(project/'source/ChatViews.swift'),str(project/'source/SettingsView.swift'),str(build/'Preview.swift'),'-o',str(macos/'LayoutPreview')],check=True)
+    subprocess.run(['swiftc','-parse-as-library',str(project/'source/LANServer.swift'),str(project/'source/LANStore.swift'),str(build/'Store.swift'),str(project/'source/Agent.swift'),str(project/'source/AgentViews.swift'),str(project/'source/ChatViews.swift'),str(project/'source/SettingsView.swift'),str(build/'Preview.swift'),'-o',str(macos/'LayoutPreview')],check=True)
 (app/'Contents/Info.plist').write_text('''<?xml version="1.0" encoding="UTF-8"?><plist version="1.0"><dict><key>CFBundleExecutable</key><string>LayoutPreview</string><key>CFBundleIdentifier</key><string>local.mantimento.layout-preview</string><key>CFBundleName</key><string>LayoutPreview</string><key>CFBundlePackageType</key><string>APPL</string></dict></plist>''')
 subprocess.run(['codesign','--force','--deep','--sign','-',str(app)],check=True)
 print(app)

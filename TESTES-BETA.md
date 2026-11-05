@@ -30,3 +30,12 @@ A instalação isolada no Mac de desenvolvimento não substitui testes em outra 
 - Cancele um resumo em andamento e uma revisão; nenhum novo chat deve aparecer.
 - Teste uma mensagem individual maior que o orçamento: ela deve permanecer no campo, com orientação para dividir o texto.
 - Resumos podem perder informações. Confirme nomes, caminhos, restrições e pendências antes de usá-los para continuar um projeto.
+
+## Rede local (build de desenvolvimento macOS)
+
+- Iniciar modelo, ativar acesso nos Ajustes e abrir endereço/chave em outro dispositivo na mesma rede.
+- Enviar mensagem pelo navegador e conferir que o app indica uso remoto; tentativa simultânea deve informar ocupado.
+- Desativar/reativar e confirmar que a chave anterior é recusada.
+- Fechar/reabrir o app com início automático ativado e conferir a nova chave.
+- Testar modelo descarregado, Mac suspenso e firewall/permissão de rede local; nenhum desses casos deve expor arquivos ou histórico nativo.
+- Não encaminhar portas no roteador. Consulte [limites e API](ACESSO-REDE.md).

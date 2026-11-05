@@ -91,6 +91,22 @@ struct DownloadModel: Identifiable {
     ]
 }
 @MainActor final class Store: ObservableObject {
+    @Published var webEnabled = false
+    @Published var webStarting = false
+    @Published var webStatus = "Acesso pela rede desligado"
+    @Published var webKey = ""
+    @Published var webAddresses:[String] = []
+    @Published var webAutoStart = AppIdentity.defaults.bool(forKey:"webAutoStart") {
+        didSet { AppIdentity.defaults.set(webAutoStart,forKey:"webAutoStart") }
+    }
+    @Published var remoteGenerating = false {
+        didSet { scheduleIdleUnload() }
+    }
+    var inferenceBusy:Bool { generating || remoteGenerating }
+    var webServer:LANServer?
+    var webRequest:Task<LANResponse,Never>?
+    let webPort:UInt16 = 8765
+
     @Published var summaryDraft: SummaryDraft?
     @Published var summaryText = ""
     @Published var summarizing = false
@@ -141,7 +157,7 @@ struct DownloadModel: Identifiable {
     var unloadedForIdle = false
     func scheduleIdleUnload() {
         idleUnloadTask?.cancel(); idleUnloadTask = nil
-        guard running, !generating, idleUnloadMinutes > 0, let server = process else { return }
+        guard running, !inferenceBusy, idleUnloadMinutes > 0, let server = process else { return }
         let delay = UInt64(min(idleUnloadMinutes,120)) * 60 * 1_000_000_000
         idleUnloadTask = Task { [weak self, weak server] in
             do { try await Task.sleep(nanoseconds:delay) } catch { return }
@@ -150,7 +166,7 @@ struct DownloadModel: Identifiable {
         }
     }
     func unloadIfIdle(_ server:Process) {
-        guard idleUnloadMinutes > 0, running, !generating, process === server else { return }
+        guard idleUnloadMinutes > 0, running, !inferenceBusy, process === server else { return }
         stop(); unloadedForIdle = true
         status = "Liberando memória após inatividade…"
     }
@@ -177,6 +193,7 @@ struct DownloadModel: Identifiable {
     var archive: URL { dataDir.appendingPathComponent("conversations.json") }
     var history: URL { dataDir.appendingPathComponent("history.json") }
     init() {
+        defer { if webAutoStart { startWebAccess() } }
         for entry in DownloadModel.catalog where !models.contains(entry.id) { models.append(entry.id) }
         AppIdentity.defaults.set(models,forKey:"models")
         refreshDownloads()
@@ -231,8 +248,8 @@ struct DownloadModel: Identifiable {
         else { conversations.insert(conversation, at: 0) }
         if let data = try? JSONEncoder().encode(conversations) { try? data.write(to: archive, options: .atomic) }
     }
-    func newChat() { guard !generating else { return }; replyFailed = false; save(); selected = nil; workspace = ""; generationInfo = ""; fullControl = false; messages = []; input = ""; ensureWorkspace(); save() }
-    func select(_ chat: Conversation) { guard !generating else { return }; replyFailed = false; save(); generationInfo = ""; selected = chat.id; messages = chat.messages; workspace = chat.workspace ?? ""; fullControl = false; input = ""; ensureWorkspace() }
+    func newChat() { guard !inferenceBusy else { return }; replyFailed = false; save(); selected = nil; workspace = ""; generationInfo = ""; fullControl = false; messages = []; input = ""; ensureWorkspace(); save() }
+    func select(_ chat: Conversation) { guard !inferenceBusy else { return }; replyFailed = false; save(); generationInfo = ""; selected = chat.id; messages = chat.messages; workspace = chat.workspace ?? ""; fullControl = false; input = ""; ensureWorkspace() }
     func export() {
         let panel = NSSavePanel(); panel.nameFieldStringValue = "conversa.txt"
         guard panel.runModal() == .OK, let url = panel.url else { return }
@@ -316,11 +333,11 @@ struct DownloadModel: Identifiable {
     func stop() {
         idleUnloadTask?.cancel(); idleUnloadTask = nil
         stopping = true
-        request?.cancel(); approve(false); commandProcess?.terminate()
+        request?.cancel(); webRequest?.cancel(); approve(false); commandProcess?.terminate()
         process?.terminate(); running = false; status = "Encerrando processo…"
     }
     func summarizeConversation() {
-        guard running, !generating, !messages.isEmpty else { return }
+        guard running, !inferenceBusy, !messages.isEmpty else { return }
         save()
         guard let sourceID = selected else { return }
         guard ContextBudget.size(messages) <= 250000 else { status = "Histórico grande demais para resumir de uma vez. Exporte-o e selecione os trechos relevantes."; return }
@@ -360,7 +377,7 @@ struct DownloadModel: Identifiable {
         }
     }
     func continueFromSummary() {
-        guard !generating, let draft = summaryDraft, selected == draft.sourceID,
+        guard !inferenceBusy, let draft = summaryDraft, selected == draft.sourceID,
               let source = conversations.first(where: { $0.id == draft.sourceID }) else { return }
         let text = summaryText.trimmingCharacters(in:.whitespacesAndNewlines)
         guard !text.isEmpty, text.utf8.count <= 6000 else { status = "Use um resumo não vazio de até 6 KB."; return }
@@ -379,7 +396,7 @@ struct DownloadModel: Identifiable {
     func send() {
         if agentEnabled { sendAgent(); return }
         let text = input.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard running, !generating, !text.isEmpty else { return }
+        guard running, !inferenceBusy, !text.isEmpty else { return }
         guard ContextBudget.size(messages,input:text) <= ContextBudget.limit else {
             status = "Contexto cheio. Use Resumir e continuar. Se a mensagem sozinha for muito grande, divida-a."; return
         }
@@ -433,7 +450,7 @@ struct DownloadModel: Identifiable {
 }
 final class Delegate: NSObject, NSApplicationDelegate {
     var store: Store?
-    func applicationWillTerminate(_ notification: Notification) { MainActor.assumeIsolated { store?.idleUnloadTask?.cancel(); store?.request?.cancel(); store?.approve(false); store?.commandProcess?.terminate(); store?.process?.terminate() } }
+    func applicationWillTerminate(_ notification: Notification) { MainActor.assumeIsolated { store?.webServer?.stop(); store?.webRequest?.cancel(); store?.idleUnloadTask?.cancel(); store?.request?.cancel(); store?.approve(false); store?.commandProcess?.terminate(); store?.process?.terminate() } }
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { true }
 }
 @main struct MantimentoApp: App {
